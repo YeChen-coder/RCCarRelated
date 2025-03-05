@@ -1,0 +1,5 @@
+steering:
+  far_left_frequency_hz: 773
+  far_right_frequency_hz: 1049
+  pwm_frequency_hz: 50
+  pwm_range: 1000
