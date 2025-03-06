@@ -135,7 +135,7 @@ def calibrate_camera():
     print(dist)
 
 def undistort_image(image_path):
-    """Load calibration data and undistort the specified image."""
+    """Load calibration data and undistort the specified image with scaled parameters."""
     # Check if calibration file exists
     if not os.path.exists('camera_calibration.yaml'):
         print("Error: camera_calibration.yaml calibration file not found")
@@ -161,17 +161,38 @@ def undistort_image(image_path):
     # Get image dimensions
     h, w = img.shape[:2]
     
-    # Get optimal new camera matrix
+    # Check 4:3 aspect ratio (within a small tolerance)
+    aspect_ratio = w / h
+    expected_ratio = 4 / 3  # 2592/1944 = 4:3
+    tolerance = 0.05  # 5% tolerance
+    
+    if not (expected_ratio - tolerance <= aspect_ratio <= expected_ratio + tolerance):
+        print(f"Error: Image must have 4:3 aspect ratio. Got {w}x{h} (ratio: {aspect_ratio:.3f})")
+        return
+    
+    # Calculate scaling factors based on original calibration resolution (2592x1944)
+    orig_w, orig_h = 2592, 1944
+    width_scale = w / orig_w
+    height_scale = h / orig_h
+    
+    # Scale camera matrix parameters
+    scaled_camera_matrix = camera_matrix.copy()
+    scaled_camera_matrix[0, 0] *= width_scale  # fx
+    scaled_camera_matrix[1, 1] *= height_scale  # fy
+    scaled_camera_matrix[0, 2] *= width_scale  # cx
+    scaled_camera_matrix[1, 2] *= height_scale  # cy
+    
+    # Get optimal new camera matrix with scaled parameters
     new_camera_matrix, roi = cv2.getOptimalNewCameraMatrix(
-        camera_matrix, dist_coeffs, (w, h), 1, (w, h)
+        scaled_camera_matrix, dist_coeffs, (w, h), 1, (w, h)
     )
     
     # Undistort the image
     undistorted_img = cv2.undistort(
-        img, camera_matrix, dist_coeffs, None, new_camera_matrix
+        img, scaled_camera_matrix, dist_coeffs, None, new_camera_matrix
     )
     
-    # Crop the image based on ROI (optional)
+    # Crop the image based on ROI
     x, y, w, h = roi
     undistorted_img = undistorted_img[y:y+h, x:x+w]
     
@@ -182,6 +203,8 @@ def undistort_image(image_path):
     cv2.imshow("Original Image", img)
     cv2.imshow("Undistorted Image", undistorted_img)
     
+    print(f"Image size: {w}x{h}")
+    print(f"Scaling factors - Width: {width_scale:.4f}, Height: {height_scale:.4f}")
     print("Showing original and undistorted images")
     print("Press any key to close windows")
     
