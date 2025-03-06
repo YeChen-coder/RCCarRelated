@@ -38,3 +38,10 @@ python camera_calib.py undistort <filename>
 ```
 
 Make sure to replace `<filename>` with the actual name of the image file you want to undistort.
+
+## Camera Calibration Examples
+
+![](640x480.jpg?raw=true)
+![](Undistorted-640x480.png?raw=true)
+![](2592x1944.jpg?raw=true)
+![](Undistorted-2592x1944.png?raw=true)
