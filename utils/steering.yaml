@@ -1,0 +1,5 @@
+steering:
+  base_pwm_frequency_hz: 50.0
+  center_pulse_width_ms: 1.123
+  delta_pulse_width_ms: 0.1702
+  pwm_range: 1000
