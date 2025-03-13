@@ -195,7 +195,19 @@ def undistort_image(image_path):
     # Crop the image based on ROI
     x, y, w, h = roi
     undistorted_img = undistorted_img[y:y+h, x:x+w]
+
+    return undistorted_img, img
+
+def undistort_image_and_display(image_path):
+    undistorted_img, img = undistort_image(image_path)
+
+    h, w = img.shape[:2]
     
+    # Calculate scaling factors based on original calibration resolution (2592x1944)
+    orig_w, orig_h = 2592, 1944
+    width_scale = w / orig_w
+    height_scale = h / orig_h
+
     # Display original and undistorted images
     cv2.namedWindow("Original Image", cv2.WINDOW_NORMAL)
     cv2.namedWindow("Undistorted Image", cv2.WINDOW_NORMAL)
@@ -231,7 +243,7 @@ def main():
             print("Usage: python script.py undistort <image_path>")
             return
         image_path = sys.argv[2]
-        undistort_image(image_path)
+        undistort_image_and_display(image_path)
     else:
         print(f"Unknown command: {command}")
         print("Available commands: collect, calibr, cali, undistort")
