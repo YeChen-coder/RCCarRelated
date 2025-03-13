@@ -45,55 +45,132 @@ def load_warp_points(yaml_path='camera_warp.yaml'):
     
     return src_points, dst_points
 
-def warp_image(image_path):
+def warp_image_path(image_path, undisorted=False):
     """
-    Main function to process image: undistort and warp to bird's eye view.
+    Load image from file, undistort it if necessary, and warp it to bird's eye view.
     
     Args:
         image_path: Path to the input image
+        undisorted: The image is already undistorted
     """
-    # Step 1: Undistort the image
-    undistorted_img, original_img = undistort_image(image_path)
+    if not undisorted:
+        undistorted_img, _ = undistort_image(image_path)
+    else:
+        undistorted_img = cv2.imread(image_path)
+
+    return warp_image_undistorted(undistorted_img)
+
+def warp_image_undistorted(img):
+    """
+    Warp an undistorted image to bird's eye view.
     
+    Args:
+        img: Undistorted input image (ndarray)
+    """
     # Get image dimensions
-    height, width = undistorted_img.shape[:2]
+    height, width = img.shape[:2]
     
-    # Step 2: Load warp points
+    # Load warp points
     src_points_norm, dst_points_norm = load_warp_points()
     
     # Scale normalized points to image dimensions
     src_points = src_points_norm * np.array([width, height], dtype=np.float32)
     dst_points = dst_points_norm * np.array([width, height], dtype=np.float32)
     
-    # Step 3: Warp the image to bird's eye view
-    warped_img, M, Minv = warp(undistorted_img, src_points, dst_points)
-    
-    # Step 4: Display results
-    cv2.imshow('Original Image', original_img)
-    cv2.imshow('Undistorted Image', undistorted_img)
-    cv2.imshow('Bird\'s Eye View', warped_img)
-    
-    # Draw source points on the undistorted image for visualization
-    vis_img = undistorted_img.copy()
-    for pt in src_points:
-        x, y = int(pt[0]), int(pt[1])
-        cv2.circle(vis_img, (x, y), 5, (0, 0, 255), -1)
-    
-    # Connect the points to show the region being transformed
-    cv2.polylines(vis_img, [src_points.astype(np.int32)], True, (0, 255, 0), 2)
-    cv2.imshow('Source Points Visualization', vis_img)
-    
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # Warp the image to bird's eye view
+    warped_img, M, Minv = warp(img, src_points, dst_points)
     
     return warped_img, M, Minv
 
+def warp_image_and_display(image_path, undisorted=False, save=False):
+    """
+    Main function to display the original and warped images.
+    Undistort the image if necessary.
+    
+    Args:
+        image_path: Path to the input image
+        undisorted: The image is already undistorted
+        save: Save the output image
+    """
+    warped_img, M, Minv = warp_image_path(image_path, undisorted)
+    
+    # Display images
+    original_img = cv2.imread(image_path)
+    
+    # Step 4: Display results
+    cv2.imshow('Original Image', original_img)
+    cv2.imshow('Bird\'s Eye View', warped_img)
+    
+    if save:
+        output_path = os.path.join('warped_' + os.path.basename(image_path))
+        cv2.imwrite(output_path, warped_img)
+        print("Warped image saved at:", output_path)
+
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+def visualize_warp_points(image_path, undistorted=False):
+    """
+    Display the original image with source points for warp.
+    
+    Args:
+        image_path: Path to the input image
+        undistorted: The image is already undistorted
+    """
+    if not undistorted:
+        img, _ = undistort_image(image_path)
+    else:
+        img = cv2.imread(image_path)
+    
+    # Load warp points
+    src_points_norm, dst_points_norm = load_warp_points()
+
+    height, width = img.shape[:2]
+
+    src_points = src_points_norm * np.array([width, height], dtype=np.float32)
+    dst_points = dst_points_norm * np.array([width, height], dtype=np.float32)
+    
+    # Draw source points on the image
+    vis_img = img.copy()
+    for pt in src_points:
+        x, y = int(pt[0]), int(pt[1])
+        cv2.circle(vis_img, (x, y), 5, (0, 0, 255), -1)
+    cv2.polylines(vis_img, [src_points.astype(np.int32)], True, (0, 255, 0), 2)
+
+    # Draw destination points on the image
+    for pt in dst_points:
+        x, y = int(pt[0]), int(pt[1])
+        cv2.circle(vis_img, (x, y), 5, (255, 0, 0), -1)
+    cv2.polylines(vis_img, [dst_points.astype(np.int32)], True, (255, 255, 0), 2)
+
+    cv2.imshow('Warp Points Visualization', vis_img)
+    
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
 def main():
-    if len(sys.argv) < 1:
-        print("Usage: python camera_warp.py <image_path>")
+    if len(sys.argv) < 2:
+        print("Usage: python camera_warp.py [command] [options]")
+        print("Commands:")
+        print("    warp_image [image_path] [--undistorted] [--save]")  # Warp an image to bird's eye view
+        print("    visualize_points [image_path] [--undistorted]")  # Visualize source points for warp
         return
-    image_path = sys.argv[1]
-    warp_image(image_path)
+
+    command = sys.argv[1].lower()
+
+    if command == 'warp_image':
+        image_path = sys.argv[2]
+        undisorted = '--undistorted' in sys.argv
+        save = '--save' in sys.argv
+        warp_image_and_display(image_path, undisorted, save)
+    elif command == 'visualize_points':
+        image_path = sys.argv[2]
+        undisorted = '--undistorted' in sys.argv
+        visualize_warp_points(image_path, undisorted)
+    else:
+        print("Error: Invalid command")
+        return
 
 if __name__ == "__main__":
     main()
