@@ -3,7 +3,7 @@ import numpy as np
 import yaml
 import os
 import sys
-from camera_calib import undistort_image
+from camera_calib import undistort_image_path
 
 def warp(img, src, dst):
     """
@@ -54,7 +54,7 @@ def warp_image_path(image_path, undisorted=False):
         undisorted: The image is already undistorted
     """
     if not undisorted:
-        undistorted_img, _ = undistort_image(image_path)
+        undistorted_img, _ = undistort_image_path(image_path)
     else:
         undistorted_img = cv2.imread(image_path)
 
@@ -118,7 +118,7 @@ def visualize_warp_points(image_path, undistorted=False):
         undistorted: The image is already undistorted
     """
     if not undistorted:
-        img, _ = undistort_image(image_path)
+        img, _ = undistort_image_path(image_path)
     else:
         img = cv2.imread(image_path)
     
