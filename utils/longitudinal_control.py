@@ -2,9 +2,21 @@ import tkinter as tk
 import pigpio
 
 class LongitudinalControl:
-    def __init__(self, master):
-        self.master = master
-        self.master.title("Longitudinal Control")
+    _instance = None
+    
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(LongitudinalControl, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self, master=None, gui=True):
+        # Only initialize once
+        if self._initialized:
+            return
+            
+        self._initialized = True
+        self.master = master if gui else None
         
         # Initialize pigpio and set GPIO pin
         self.pi = pigpio.pi()
@@ -28,6 +40,18 @@ class LongitudinalControl:
         # Set initial PWM frequency
         self.pi.set_PWM_frequency(self.gpio, self.f_pwm)
 
+        if gui and master:
+            self._setup_gui(master)
+            # Set initial servo position
+            self.update_servo()
+            # Handle window close event
+            self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
+        else:
+            # Initialize servo position even without GUI
+            self.update_servo()
+    
+    def _setup_gui(self, master):
+        """Setup all GUI elements"""
         # GUI Elements
         # PWM Frequency Input
         tk.Label(master, text="PWM Frequency (Hz):").grid(row=0, column=0, padx=5, pady=5)
@@ -74,11 +98,28 @@ class LongitudinalControl:
         self.label_pw = tk.Label(master, text=f"Current pw: {self.neutral_pw:.2f} ms")
         self.label_pw.grid(row=8, column=0, columnspan=2, pady=5)
 
-        # Set initial servo position
-        self.update_servo()
+    def set_gear(self, gear):
+        """Set gear directly without GUI
+        gear: 'Neutral', 'Forward', or 'Backward'
+        """
+        gear_map = {"Neutral": 0, "Forward": -1, "Backward": 1}
+        if gear in gear_map:
+            self.gear = gear_map[gear]
+            # Update GUI if available
+            if hasattr(self, 'gear_var'):
+                self.gear_var.set(gear)
+            self.update_servo()
+            return True
+        return False
 
-        # Handle window close event
-        self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
+    def set_speed(self, value):
+        """Set speed value (0-100) without GUI slider"""
+        self.slider_value = max(0, min(100, float(value)))  # Clamp between 0-100
+        # Update GUI if available
+        if hasattr(self, 'slider'):
+            self.slider.set(self.slider_value)
+        self.update_servo()
+        return self.slider_value
 
     def update_gear(self, value):
         """Update gear selection."""
@@ -115,10 +156,17 @@ class LongitudinalControl:
         # Set PWM duty cycle
         self.pi.set_PWM_dutycycle(self.gpio, duty_cycle)
         
-        # Update display
-        current_freq = 1000 / final_pw if final_pw > 0 else 0
-        self.label_f.config(text=f"Current f: {current_freq:.2f} Hz")
-        self.label_pw.config(text=f"Current pw: {final_pw:.2f} ms")
+        # Update display if GUI exists
+        if hasattr(self, 'label_f') and hasattr(self, 'label_pw'):
+            current_freq = 1000 / final_pw if final_pw > 0 else 0
+            self.label_f.config(text=f"Current f: {current_freq:.2f} Hz")
+            self.label_pw.config(text=f"Current pw: {final_pw:.2f} ms")
+        
+        # Return calculated values for non-GUI usage
+        return {
+            'pulse_width': final_pw,
+            'duty_cycle': duty_cycle
+        }
 
     def apply_settings(self):
         """Apply user-entered configuration settings."""
@@ -147,17 +195,23 @@ class LongitudinalControl:
 
     def stop(self):
         """Set slider and servo to stop position (0)."""
-        self.slider.set(0)
         self.slider_value = 0
+        if hasattr(self, 'slider'):
+            self.slider.set(0)
         self.update_servo()
+
+    def cleanup(self):
+        """Clean up resources (can be called explicitly without GUI)"""
+        self.pi.set_PWM_dutycycle(self.gpio, 0)  # Stop PWM
+        self.pi.stop()  # Stop pigpio
 
     def on_closing(self):
         """Clean up when closing the window."""
-        self.pi.set_PWM_dutycycle(self.gpio, 0)  # Stop PWM
-        self.pi.stop()  # Stop pigpio
-        self.master.destroy()
+        self.cleanup()
+        if self.master:
+            self.master.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = LongitudinalControl(root)
+    app = LongitudinalControl(root, gui=True)
     root.mainloop()
