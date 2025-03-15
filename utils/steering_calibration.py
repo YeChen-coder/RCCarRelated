@@ -3,12 +3,12 @@ import pigpio
 import yaml
 import os
 
-class ServoControl:
+class SteeringServoControl:
     _instance = None
     
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
-            cls._instance = super(ServoControl, cls).__new__(cls)
+            cls._instance = super(SteeringServoControl, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
     
@@ -249,5 +249,5 @@ class ServoControl:
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = ServoControl(root, gui=True)
+    app = SteeringServoControl(root, gui=True)
     root.mainloop()

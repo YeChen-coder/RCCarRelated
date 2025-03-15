@@ -1,7 +1,7 @@
 import math
 import yaml  # Requires 'pyyaml' package: sudo apt-get install python3-yaml
 import pigpio
-from steering_calibration import ServoControl
+from steering_calibration import SteeringServoControl
 from time import sleep
 
 def load_car_kinematics(yaml_path='car_kinematics.yaml'):
@@ -67,7 +67,7 @@ def set_angle_radians(angle: float, servoControl):
     
     Args:
         angle: Steering angle in radians (angle < 0: left, angle > 0: right)
-        servoControl: ServoControl object
+        servoControl: SteeringServoControl object
 
     Notes: 
         - The steering angle is capped to the maximum turning angle
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     import numpy as np
     car_params = load_car_kinematics()
     print(car_params)
-    servo = ServoControl(gui=False)
+    servo = SteeringServoControl(gui=False)
     for i in np.arange(0.0, 10.0, 0.1):
         set_angle_degrees(i, servo)
         sleep(0.1)
