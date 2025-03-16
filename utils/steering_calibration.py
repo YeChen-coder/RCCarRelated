@@ -1,11 +1,24 @@
 import tkinter as tk
 import pigpio
-import yaml  # Requires 'pyyaml' package: sudo apt-get install python3-yaml
+import yaml
+import os
 
-class ServoControl:
-    def __init__(self, master):
-        self.master = master
-        self.master.title("Servo Steering Control")
+class SteeringServoControl:
+    _instance = None
+    
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super(SteeringServoControl, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self, master=None, gui=True):
+        # Only initialize once
+        if self._initialized:
+            return
+            
+        self._initialized = True
+        self.master = master if gui else None
         
         # Initialize pigpio and set GPIO pin
         self.pi = pigpio.pi()
@@ -29,7 +42,22 @@ class ServoControl:
         
         # Set initial PWM frequency
         self.pi.set_PWM_frequency(self.gpio, self.f_pwm)
+        
+        # Try to load config from default path
+        self.load_steering_calibration()
 
+        if gui and master:
+            self._setup_gui(master)
+            # Set initial servo position
+            self.update_servo()
+            # Handle window close event
+            self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
+        elif not gui:
+            # Set initial servo position even without GUI
+            self.update_servo()
+    
+    def _setup_gui(self, master):
+        """Setup all GUI elements"""
         # GUI Elements
         # PWM Frequency Input (now base frequency)
         tk.Label(master, text="Base PWM Frequency (Hz):").grid(row=0, column=0, padx=5, pady=5)
@@ -72,12 +100,54 @@ class ServoControl:
         self.label_f.grid(row=6, column=0, columnspan=2, pady=5)
         self.label_pw = tk.Label(master, text="Current pw: 0.00 ms")
         self.label_pw.grid(row=7, column=0, columnspan=2, pady=5)
+    
+    def load_steering_calibration(self, yaml_path='steering.yaml'):
+        """Load steering configuration from YAML file"""
+        try:
+            if os.path.exists(yaml_path):
+                with open(yaml_path, 'r') as file:
+                    settings = yaml.safe_load(file)
+                
+                # Extract settings
+                steering_config = settings.get('steering', {})
+                
+                # Update instance properties
+                if 'base_pwm_frequency_hz' in steering_config:
+                    self.f_pwm = steering_config['base_pwm_frequency_hz']
+                if 'center_pulse_width_ms' in steering_config: 
+                    self.pw_center = steering_config['center_pulse_width_ms']
+                if 'delta_pulse_width_ms' in steering_config:
+                    self.pw_delta = steering_config['delta_pulse_width_ms']
+                
+                # Recalculate frequency bounds
+                self.f_min = 1 / (self.pw_center + self.pw_delta)
+                self.f_max = 1 / (self.pw_center - self.pw_delta)
+                
+                # Set PWM frequency
+                self.pi.set_PWM_frequency(self.gpio, int(self.f_pwm))
+                
+                # Update GUI elements if available
+                if hasattr(self, 'entry_f_pwm'):
+                    self.entry_f_pwm.delete(0, tk.END)
+                    self.entry_f_pwm.insert(0, str(self.f_pwm))
+                    self.entry_pw_center.delete(0, tk.END)
+                    self.entry_pw_center.insert(0, str(self.pw_center))
+                    self.entry_pw_delta.delete(0, tk.END)
+                    self.entry_pw_delta.insert(0, str(self.pw_delta))
+                
+                return True
+            else:
+                print(f"Configuration file {yaml_path} not found. Using default values.")
+                return False
+        except Exception as e:
+            print(f"Error loading settings: {e}")
+            return False
 
-        # Set initial servo position
+    def set_steering(self, value):
+        """Set steering value (0-100) without GUI slider"""
+        self.slider_value = max(0, min(100, float(value)))  # Clamp between 0-100
         self.update_servo()
-
-        # Handle window close event
-        self.master.protocol("WM_DELETE_WINDOW", self.on_closing)
+        return self.slider_value
 
     def update_slider(self, value):
         """Update servo position when slider is moved."""
@@ -101,9 +171,17 @@ class ServoControl:
         # Set PWM duty cycle
         self.pi.set_PWM_dutycycle(self.gpio, duty_cycle)
         
-        # Update display
-        self.label_f.config(text=f"Current f: {f:.2f} Hz")
-        self.label_pw.config(text=f"Current pw: {current_pw:.2f} ms")
+        # Update display if GUI exists
+        if hasattr(self, 'label_f'):
+            self.label_f.config(text=f"Current f: {f:.2f} Hz")
+            self.label_pw.config(text=f"Current pw: {current_pw:.2f} ms")
+        
+        # Return calculated values for non-GUI usage
+        return {
+            'frequency': f,
+            'pulse_width': current_pw,
+            'duty_cycle': duty_cycle
+        }
 
     def apply_settings(self):
         """Apply user-entered configuration settings."""
@@ -153,17 +231,23 @@ class ServoControl:
 
     def center(self):
         """Set slider and servo to center position."""
-        self.slider.set(50)
         self.slider_value = 50
+        if hasattr(self, 'slider'):
+            self.slider.set(50)
         self.update_servo()
+
+    def cleanup(self):
+        """Clean up resources (can be called explicitly without GUI)"""
+        self.pi.set_PWM_dutycycle(self.gpio, 0)  # Stop PWM
+        self.pi.stop()  # Stop pigpio
 
     def on_closing(self):
         """Clean up when closing the window."""
-        self.pi.set_PWM_dutycycle(self.gpio, 0)  # Stop PWM
-        self.pi.stop()  # Stop pigpio
-        self.master.destroy()
+        self.cleanup()
+        if self.master:
+            self.master.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = ServoControl(root)
+    app = SteeringServoControl(root, gui=True)
     root.mainloop()

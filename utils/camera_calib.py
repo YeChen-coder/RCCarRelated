@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-from picamera2 import Picamera2
 import time
 import sys
 import os
@@ -10,6 +9,7 @@ import random
 
 def collect_images():
     """Collect calibration images every 2 seconds."""
+    from picamera2 import Picamera2  # Import Picamera2 here
     camera = Picamera2()
     config = camera.create_preview_configuration(main={"size": (2592, 1944)})
     camera.configure(config)
@@ -134,32 +134,9 @@ def calibrate_camera():
     print("\nDistortion Coefficients:")
     print(dist)
 
-def undistort_image(image_path):
-    """Load calibration data and undistort the specified image with scaled parameters."""
-    # Check if calibration file exists
-    if not os.path.exists('camera_calibration.yaml'):
-        print("Error: camera_calibration.yaml calibration file not found")
-        return
-    
-    # Load calibration data
-    with open('camera_calibration.yaml', 'r') as f:
-        calibration_data = yaml.safe_load(f)
-    
-    camera_matrix = np.array(calibration_data['camera_matrix'])
-    dist_coeffs = np.array(calibration_data['dist_coeff'])
-    
-    # Load the image
-    if not os.path.exists(image_path):
-        print(f"Error: Image file not found at {image_path}")
-        return
-    
-    img = cv2.imread(image_path)
-    if img is None:
-        print(f"Error: Could not load image at {image_path}")
-        return
-    
-    # Get image dimensions
-    h, w = img.shape[:2]
+def undistort_image(image, camera_matrix, dist_coeffs):
+    """Undistort the given image using the provided camera matrix and distortion coefficients."""
+    h, w = image.shape[:2]
     
     # Check 4:3 aspect ratio (within a small tolerance)
     aspect_ratio = w / h
@@ -168,7 +145,7 @@ def undistort_image(image_path):
     
     if not (expected_ratio - tolerance <= aspect_ratio <= expected_ratio + tolerance):
         print(f"Error: Image must have 4:3 aspect ratio. Got {w}x{h} (ratio: {aspect_ratio:.3f})")
-        return
+        return None, None
     
     # Calculate scaling factors based on original calibration resolution (2592x1944)
     orig_w, orig_h = 2592, 1944
@@ -189,17 +166,45 @@ def undistort_image(image_path):
     
     # Undistort the image
     undistorted_img = cv2.undistort(
-        img, scaled_camera_matrix, dist_coeffs, None, new_camera_matrix
+        image, scaled_camera_matrix, dist_coeffs, None, new_camera_matrix
     )
     
     # Crop the image based on ROI
     x, y, w, h = roi
     undistorted_img = undistorted_img[y:y+h, x:x+w]
 
-    return undistorted_img, img
+    return undistorted_img, image
+
+def undistort_image_path(image_path):
+    """Load calibration data and undistort the specified image with scaled parameters."""
+    # Check if calibration file exists
+    if not os.path.exists('camera_calibration.yaml'):
+        print("Error: camera_calibration.yaml calibration file not found")
+        return None, None
+    
+    # Load calibration data
+    with open('camera_calibration.yaml', 'r') as f:
+        calibration_data = yaml.safe_load(f)
+    
+    camera_matrix = np.array(calibration_data['camera_matrix'])
+    dist_coeffs = np.array(calibration_data['dist_coeff'])
+    
+    # Load the image
+    if not os.path.exists(image_path):
+        print(f"Error: Image file not found at {image_path}")
+        return None, None
+    
+    img = cv2.imread(image_path)
+    if img is None:
+        print(f"Error: Could not load image at {image_path}")
+        return None, None
+    
+    return undistort_image(img, camera_matrix, dist_coeffs)
 
 def undistort_image_and_display(image_path):
-    undistorted_img, img = undistort_image(image_path)
+    undistorted_img, img = undistort_image_path(image_path)
+    if undistorted_img is None or img is None:
+        return
 
     h, w = img.shape[:2]
     

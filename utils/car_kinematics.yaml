@@ -1,0 +1,4 @@
+car_kinematics:
+  wheel_base: 0.4
+  left_turing_radius: 2.72
+  right_turing_radius: 2.80
