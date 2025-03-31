@@ -107,6 +107,16 @@ class LaneLine:
     def is_turing_right_rad_center(self, x0, rad, center, threshold_rad=2000):
         X_c, Y_c = center
         return Y_c > self.evaluate(x0) and rad < threshold_rad
+    
+    @property
+    def heading_angle(self):
+        """
+        Calculate the heading angle of the lane line.
+        
+        Returns:
+            float: The heading angle in radians
+        """
+        return np.arctan2(2 * self.a, 1)
 
     def is_turning_left(self, x0, threshold_rad=2000):
         """
