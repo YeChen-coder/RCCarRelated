@@ -45,7 +45,7 @@ def load_warp_points(yaml_path='camera_warp.yaml'):
     
     return src_points, dst_points
 
-def warp_image_path(image_path, undisorted=False):
+def warp_image_path(image_path, camera_matrix, dist_coeffs, src, dist, undisorted=False):
     """
     Load image from file, undistort it if necessary, and warp it to bird's eye view.
     
@@ -54,13 +54,13 @@ def warp_image_path(image_path, undisorted=False):
         undisorted: The image is already undistorted
     """
     if not undisorted:
-        undistorted_img, _ = undistort_image_path(image_path)
+        undistorted_img, _ = undistort_image_path(image_path, camera_matrix, dist_coeffs)
     else:
         undistorted_img = cv2.imread(image_path)
 
-    return warp_image_undistorted(undistorted_img)
+    return warp_image_undistorted(undistorted_img, src, dist)
 
-def warp_image_undistorted(img):
+def warp_image_undistorted(img, src, dist):
     """
     Warp an undistorted image to bird's eye view.
     
@@ -71,7 +71,7 @@ def warp_image_undistorted(img):
     height, width = img.shape[:2]
     
     # Load warp points
-    src_points_norm, dst_points_norm = load_warp_points()
+    src_points_norm, dst_points_norm = src, dist
     
     # Scale normalized points to image dimensions
     src_points = src_points_norm * np.array([width, height], dtype=np.float32)
@@ -82,7 +82,7 @@ def warp_image_undistorted(img):
     
     return warped_img, M, Minv
 
-def warp_image_and_display(image_path, undisorted=False, save=False):
+def warp_image_and_display(image_path, camera_matrix, dist_coeffs, undisorted=False, save=False):
     """
     Main function to display the original and warped images.
     Undistort the image if necessary.
@@ -92,7 +92,7 @@ def warp_image_and_display(image_path, undisorted=False, save=False):
         undisorted: The image is already undistorted
         save: Save the output image
     """
-    warped_img, M, Minv = warp_image_path(image_path, undisorted)
+    warped_img, M, Minv = warp_image_path(image_path, camera_matrix, dist_coeffs, undisorted)
     
     # Display images
     original_img = cv2.imread(image_path)
