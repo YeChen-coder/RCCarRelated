@@ -12,7 +12,7 @@ class SteeringServoControl:
             cls._instance._initialized = False
         return cls._instance
     
-    def __init__(self, master=None, gui=True):
+    def __init__(self, master=None, gui=False):
         # Only initialize once
         if self._initialized:
             return
@@ -56,6 +56,7 @@ class SteeringServoControl:
             # Set initial servo position even without GUI
             self.update_servo()
     
+    # GUI related methods.
     def _setup_gui(self, master):
         """Setup all GUI elements"""
         # GUI Elements
@@ -145,6 +146,8 @@ class SteeringServoControl:
 
     def set_steering(self, value):
         """Set steering value (0-100) without GUI slider"""
+        if value < 0 or value > 100:
+            print("Steering value must be between 0 and 100")
         self.slider_value = max(0, min(100, float(value)))  # Clamp between 0-100
         self.update_servo()
         return self.slider_value
@@ -183,6 +186,7 @@ class SteeringServoControl:
             'duty_cycle': duty_cycle
         }
 
+    # GUI methods.
     def apply_settings(self):
         """Apply user-entered configuration settings."""
         try:
