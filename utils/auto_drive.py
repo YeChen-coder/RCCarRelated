@@ -27,7 +27,7 @@ class CarController:
         assert self.longitudinal_control.set_speed(speed) == speed # Make sure speed is set correctly
         self.steering_control.set_angle_degrees(steering_angle)
 
-    def test_drive(self, gear: str, speeds, steering_angles, FPS=30):
+    def test_drive(self, gear: str, speeds, steering_angles, FPS=1):
         """
         Drives the car at a fixed forward speed.
         """
@@ -47,7 +47,11 @@ def main():
 
     speeds = [] 
     angles = []
-    for i in range(100):
+    for i in range(20):
         speeds.append(FIXED_FORWARD_SPEED)
         angles.append(math.sin(i / 10) * 20)  # Example: sine wave steering angle
-    print(angles)
+    controller.test_drive('Forward', speeds, angles, FPS=2)
+    
+
+if __name__ == "__main__":
+    main()

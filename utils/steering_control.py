@@ -1,6 +1,9 @@
 import math
 import yaml  # Requires 'pyyaml' package: sudo apt-get install python3-yaml
+
 import pigpio
+import numpy as np
+
 from steering_calibration import SteeringServoControl
 from time import sleep
 
@@ -29,6 +32,9 @@ class SteeringControl:
         car_params["maximum_left_turning_angle"] = left_turning_angle
         car_params["maximum_right_turning_angle"] = right_turning_angle
         self.car_params = car_params
+
+        print("Car kinematics parameters loaded successfully:")
+        print(self.car_params)
 
     def set_angle_degrees(self, angle: float):
         """
@@ -157,18 +163,8 @@ def set_angle_radians(angle: float, servoControl):
 
 
 if __name__ == "__main__":
-    import numpy as np
-
-    # car_params = load_car_kinematics()
-    # print(car_params)
-    # servo = SteeringServoControl(gui=False)
-    # for i in np.arange(0.0, 10.0, 0.1):
-    #     set_angle_degrees(i, servo)
-    #     sleep(0.1)
-    # for i in np.arange(-10.0, 0.0, 0.1):
-    #     set_angle_degrees(i, servo)
-    #     sleep(0.1)
     steer_control = SteeringControl('../conf/car_kinematics.yaml', '../conf/steering.yaml')
+
     print('Start to test steering control...')
     for i in np.arange(0.0, 20.0, 5):
         print('++++Steering angle:', i)
