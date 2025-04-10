@@ -9,6 +9,33 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../utils")
 from camera_warp import load_warp_points, warp_image_undistorted, warp_image_path
 from camera_calib import load_calibration_data, undistort_image, undistort_image_path
 
+def _check_overlap(window1, window2):
+    """
+    Check if two windows overlap.
+    Each window is represented by its top-left (x1, y1) and bottom-right (x2, y2) coordinates.
+    
+    Args:
+        window1: tuple of ((top_left_x, top_left_y), (bottom_right_x, bottom_right_y))
+        window2: tuple of ((top_left_x, top_left_y), (bottom_right_x, bottom_right_y))
+    
+    Returns:
+        True if windows overlap, False otherwise
+    """
+    # Extract coordinates
+    (x1_tl, y1_tl), (x1_br, y1_br) = window1
+    (x2_tl, y2_tl), (x2_br, y2_br) = window2
+    
+    # Check if one window is to the left of the other
+    if x1_br < x2_tl or x2_br < x1_tl:
+        return False
+    
+    # Check if one window is above the other
+    if y1_br < y2_tl or y2_br < y1_tl:
+        return False
+    
+    # If neither of the above conditions is true, windows overlap
+    return True
+
 # Color space transformation
 def _color_space_transform(image):
     # Convert to HSV
@@ -54,7 +81,7 @@ def _remove_overlapping_windows(windows_a, windows_b, mode='remove_a_keep_b'):
             overlaps = False
             
             for window_b in windows_b:
-                if check_overlap(window_a, window_b):
+                if _check_overlap(window_a, window_b):
                     overlaps = True
                     break
             
@@ -77,7 +104,7 @@ def _remove_overlapping_windows(windows_a, windows_b, mode='remove_a_keep_b'):
             overlaps = False
             
             for window_a in windows_a:
-                if check_overlap(window_b, window_a):
+                if _check_overlap(window_b, window_a):
                     overlaps = True
                     break
             
