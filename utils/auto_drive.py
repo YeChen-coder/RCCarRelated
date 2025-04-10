@@ -4,7 +4,7 @@ import numpy as np
 import sys
 from collections import defaultdict
 
-import keyboard
+# import keyboard
 import matplotlib.pyplot as plt
 from picamera2 import Picamera2
 
@@ -128,37 +128,40 @@ class CarController:
         target_offset = 0.0
         target_heading = 0.0
         control_target = target_offset * self.offset_weight + target_heading * self.heading_weight
-        while True:
-            # Capture image from camera
-            frame = self.camera.capture_array()
+        try:
+            print("Press Ctrl+C to exit the program.") 
+            while True:
+                # Capture image from camera
+                frame = self.camera.capture_array()
 
-            cur_time = time.time()
-            delta_time = cur_time - pre_time
+                cur_time = time.time()
+                delta_time = cur_time - pre_time
 
-            # Process the frame for lane detection.
-            offset_pixel, heading_degree = self.lane_detector.process_frame(frame)
-            observation = offset_pixel * self.offset_weight + heading_degree * self.heading_weight
-            pid_gain = self.pid.update(control_target, observation, delta_time)
-            steering_angle = self.get_steer(pid_gain)
+                # Process the frame for lane detection.
+                offset_pixel, heading_degree = self.lane_detector.process_frame(frame)
+                observation = offset_pixel * self.offset_weight + heading_degree * self.heading_weight
+                pid_gain = self.pid.update(control_target, observation, delta_time)
+                steering_angle = self.get_steer(pid_gain)
 
-            self.update_drive('Forward', FIXED_SPEED, steering_angle)
+                self.update_drive('Forward', FIXED_SPEED, steering_angle)
 
-            self.records['time'].append(cur_time - start_time)
-            self.records['offset'].append(offset_pixel)
-            self.records['heading'].append(heading_degree)
-            self.records['observation'].append(observation)
-            self.records['pid_gain'].append(pid_gain)
-            self.records['steering_angle'].append(steering_angle)
+                self.records['time'].append(cur_time - start_time)
+                self.records['offset'].append(offset_pixel)
+                self.records['heading'].append(heading_degree)
+                self.records['observation'].append(observation)
+                self.records['pid_gain'].append(pid_gain)
+                self.records['steering_angle'].append(steering_angle)
 
-            pre_time = cur_time
+                pre_time = cur_time
 
-            # Check for 'q' to quit
-            if keyboard.is_pressed('q'):
-                print("Auto drive stopped by the user.")
-                break
-            time.sleep(sleep_time)
-
-        self.update_drive('Neutral', 0.0, 0.0)
+                # if keyboard.is_pressed('q'):
+                #     print("Auto drive stopped by the user.")
+                #     break
+                time.sleep(sleep_time)
+        except KeyboardInterrupt:
+            print("Stopped by the user.")
+        finally:
+            self.update_drive('Neutral', 0.0, 0.0)
 
     def plot_records(self):
         """
