@@ -15,17 +15,17 @@ class CarController:
         self.longitudinal_control = LongitudinalControl(master=None, gui=False)
         self.steering_control = SteeringControl(car_kinematics_conf_path, steering_conf_path)
 
-    def update_drive(self, gear: str, speed: float, steering_angle: float):
+    def update_drive(self, gear: str, speed: float, steering_degree: float):
         """
         Update the car's drive speed and steering angle.
         
         Args:
             speed (float): The forward speed command.
-            steering_angle (float): The steering command in degrees (0.0 means straight).
+            steering_degree (float): The steering command in degrees (0.0 means straight), value will be camp to [-8.0, 8.0].
         """
         assert self.longitudinal_control.set_gear(gear)
         assert self.longitudinal_control.set_speed(speed) == speed # Make sure speed is set correctly
-        self.steering_control.set_angle_degrees(steering_angle)
+        self.steering_control.set_angle_degrees(steering_degree)
 
     def test_drive(self, gear: str, speeds, steering_angles, FPS=1):
         """
@@ -49,9 +49,8 @@ def main():
     angles = []
     for i in range(20):
         speeds.append(FIXED_FORWARD_SPEED)
-        angles.append(math.sin(i / 10) * 20)  # Example: sine wave steering angle
+        angles.append(math.sin(i) * 8.0)  # The max abs steering angle is about 8.0 degrees.
     controller.test_drive('Forward', speeds, angles, FPS=2)
-    
 
 if __name__ == "__main__":
     main()

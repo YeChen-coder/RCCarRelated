@@ -41,6 +41,7 @@ class SteeringControl:
         Set the steering angle in degrees.
         Args:
             angle: Steering angle in degrees (angle < 0: left, angle > 0: right)
+                   value will be camp to [-8.0, 8.0].
         """
         # Convert degrees to radians
         angle_radians = math.radians(angle)
