@@ -37,7 +37,7 @@ def live_capture():
     """Run live camera preview with FPS counter and photo capture."""
     camera = Picamera2()
     # config = camera.create_preview_configuration(main={"size": (640, 480), "format": 'YUV420'})
-    config = camera.create_video_configuration(main={"size": (640, 480), "format": 'YUV420'})
+    config = camera.create_video_configuration(main={"size": (640, 480)})
     camera.configure(config)
     
     # Print current configuration
