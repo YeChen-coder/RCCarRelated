@@ -4,9 +4,7 @@ import time
 import numpy as np
 import sys
 from collections import defaultdict
-from types import MethodType
 
-# import keyboard
 import matplotlib.pyplot as plt
 from picamera2 import Picamera2
 
