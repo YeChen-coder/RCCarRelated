@@ -44,7 +44,7 @@ def live_capture():
     print("-------------------")
     print(f"Current Resolution: {current_config['main']['size']}")
     print(f"Current Format: {current_config['main']['format']}")
-    print(f"Camera Frame Rate: {camera.camera_controls["FrameRate"]}")
+    print(f"Camera Frame Rate: {camera.camera_controls['FrameRate']}")
     print("-------------------")
     
     camera.start()
