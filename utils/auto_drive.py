@@ -5,6 +5,7 @@ import numpy as np
 import sys
 from collections import defaultdict
 
+import cv2
 import matplotlib.pyplot as plt
 from picamera2 import Picamera2
 
@@ -16,6 +17,20 @@ from lane_detector import LaneDetector
 from pid_control import PID
 
 FIXED_FORWARD_SPEED = 10.0  # units per second
+
+def _put_text(img, text, pos, font=cv2.FONT_HERSHEY_SIMPLEX, scale=0.5, color=(255, 255, 255), thickness=1):
+    """
+    Put text on an image.
+    Args:
+        img (numpy.ndarray): Image to draw text on.
+        text (str): Text to draw.
+        pos (tuple): Position to draw the text at.
+        font (int): Font type.
+        scale (float): Font scale.
+        color (tuple): Color of the text in BGR format.
+        thickness (int): Thickness of the text.
+    """
+    cv2.putText(img, text, pos, font, scale, color, thickness)
 
 class CarController:
     """
@@ -113,7 +128,7 @@ class CarController:
         # Should steer right.
         return steering_angle
     
-    def auto_drive_forward(self, fixed_speed, FPS):
+    def auto_drive_forward(self, fixed_speed, FPS, view=True, debug=False):
         """
         Drives the car forward at a fixed speed. And steering with camera lane detection.
         """
@@ -152,6 +167,18 @@ class CarController:
                 self.records['steering_angle'].append(steering_angle)
 
                 pre_time = cur_time
+                if view:
+                    _put_text(frame, f"Time: {cur_time - start_time:.2f}", (10, 0))
+                    _put_text(frame, f"Offset: {offset_pixel:.2f}", (10, 30))
+                    _put_text(frame, f"Heading: {heading_degree:.2f}", (10, 60))
+                    _put_text(frame, f"PID Gain: {pid_gain:.2f}", (10, 90))
+                    _put_text(frame, f"Steering Angle: {steering_angle:.2f}", (10, 120))
+
+                    cv2.imshow("Raw frame", frame)
+                if debug:
+                    key = cv2.waitKey(1) & 0xFF
+                    if key == ord('q'):
+                        break
                 time.sleep(sleep_time)
         except KeyboardInterrupt:
             print("Stopped by the user.")
@@ -222,14 +249,16 @@ def main(args):
     elif args.mode == "auto_drive":
         controller.auto_drive_forward(fixed_speed=args.speed, FPS=args.fps)
         controller.plot_records()
+    elif args.mode == "debug":
+        controller.auto_drive_forward(fixed_speed=args.speed, FPS=args.fps, debug=True)
     else:
         print("Invalid mode. Use 'test_car' or 'auto_drive'.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Auto RCCar control.")
     parser.add_argument("mode", 
-                        choices=["test_car", "auto_drive"], 
-                        help="Mode to run: 'test_car' for test mechanism, 'auto_drive' for camera-guided drive.")
+                        choices=["test", "auto", "debug"], 
+                        help="Mode to run: 'test' for test mechanism, 'auto' for camera-guided drive, 'debug' for frame level debug.")
     parser.add_argument("--speed", type=float, default=37.0, help="Fixed drive speed.")
     parser.add_argument("--fps", type=int, default=10, help="Frames per second to drive the car.")
     args = parser.parse_args()
