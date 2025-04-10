@@ -36,9 +36,14 @@ class CarController:
         time_delay = 1.0 / FPS
         print("Starting auto drive...")
         try:
+            self.update_drive('Neutral', 0.0, 0.0)  # Reset to neutral at the beginning.
+
             for speed, steering_angle in zip(speeds, steering_angles):
+                print('Gear:', gear, 'Speed:', speed, 'Steering Angle:', steering_angle)
                 self.update_drive(gear, speed, steering_angle)
                 time.sleep(time_delay)
+
+            self.update_drive('Neutral', 0.0, 0.0)  # Reset to neutral at the end.
         except KeyboardInterrupt:
             print("Auto drive stopped by the user.")
 
@@ -47,10 +52,10 @@ def main():
 
     speeds = [] 
     angles = []
-    for i in range(20):
+    for i in range(50):
         speeds.append(FIXED_FORWARD_SPEED)
-        angles.append(math.sin(i) * 8.0)  # The max abs steering angle is about 8.0 degrees.
-    controller.test_drive('Forward', speeds, angles, FPS=2)
+        angles.append(math.sin(i / 10.0) * 8.0)  # The max abs steering angle is about 8.0 degrees.
+    controller.test_drive('Forward', speeds, angles, FPS=5)
 
 if __name__ == "__main__":
     main()
