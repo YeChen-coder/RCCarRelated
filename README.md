@@ -12,11 +12,11 @@ source path/to/venv/bin/activate
 
 Step 3: Run the following command to install the dependencies:
 ```bash
+cd path/to/RCCarRelated
 pip install -r requirements.txt
 ```
 
 # Run
-
 Run the main script:
 ```bash
 cd path/to/RCCarRelated/utils
