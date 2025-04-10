@@ -230,7 +230,7 @@ class LaneDetector:
     def __init__(self, calibration_conf_path, warp_conf_path):
         self.camera_matrix, self.dist_coeffs = load_calibration_data(calibration_conf_path)
         self.src_point, self.dst_point = load_warp_points(warp_conf_path)
-        self.initiallized = False
+        self.initialized = False
         self.previous_left_line = None
         self.previous_right_line = None
 
