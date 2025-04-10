@@ -1,4 +1,5 @@
 import argparse
+import ast
 import math
 import time
 import numpy as np
@@ -143,45 +144,52 @@ class CarController:
         target_heading = 0.0
         control_target = target_offset * self.offset_weight + target_heading * self.heading_weight
         print("Press q on camera window to exit the program.") 
-        while True:
-            # Capture image from camera
-            frame = self.camera.capture_array()
+        try:
+            while True:
+                # Capture image from camera
+                frame = self.camera.capture_array()
 
-            cur_time = time.time()
-            delta_time = cur_time - pre_time
+                cur_time = time.time()
+                delta_time = cur_time - pre_time
 
-            # Process the frame for lane detection.
-            offset_pixel, heading_degree = self.lane_detector.process_frame(frame)
-            observation = offset_pixel * self.offset_weight + heading_degree * self.heading_weight
-            pid_gain = self.pid.update(control_target, observation, delta_time)
-            steering_angle = self.get_steer(pid_gain)
+                # Process the frame for lane detection.
+                offset_pixel, heading_degree = self.lane_detector.process_frame(frame)
+                observation = offset_pixel * self.offset_weight + heading_degree * self.heading_weight
+                pid_gain = self.pid.update(control_target, observation, delta_time)
+                steering_angle = self.get_steer(pid_gain)
 
-            self.update_drive('Forward', fixed_speed, steering_angle)
+                self.update_drive('Forward', fixed_speed, steering_angle)
 
-            self.records['time'].append(cur_time - start_time)
-            self.records['offset'].append(offset_pixel)
-            self.records['heading'].append(heading_degree)
-            self.records['observation'].append(observation)
-            self.records['pid_gain'].append(pid_gain)
-            self.records['steering_angle'].append(steering_angle)
+                self.records['time'].append(cur_time - start_time)
+                self.records['offset'].append(offset_pixel)
+                self.records['heading'].append(heading_degree)
+                self.records['observation'].append(observation)
+                self.records['pid_gain'].append(pid_gain)
+                self.records['steering_angle'].append(steering_angle)
 
-            pre_time = cur_time
+                pre_time = cur_time
 
-            _put_text(frame, f"Time: {cur_time - start_time:.2f}", (10, 30))
-            _put_text(frame, f"Offset: {offset_pixel:.2f}", (10, 60))
-            _put_text(frame, f"Heading: {heading_degree:.2f}", (10, 90))
-            _put_text(frame, f"PID Gain: {pid_gain:.2f}", (10, 120))
-            _put_text(frame, f"Steering Angle: {steering_angle:.2f}", (10, 150))
-            cv2.imshow("Frame", frame)
+                _put_text(frame, f"Time: {cur_time - start_time:.2f}", (10, 30))
+                _put_text(frame, f"Offset: {offset_pixel:.2f}", (10, 60))
+                _put_text(frame, f"Heading: {heading_degree:.2f}", (10, 90))
+                _put_text(frame, f"PID Gain: {pid_gain:.2f}", (10, 120))
+                _put_text(frame, f"Steering Angle: {steering_angle:.2f}", (10, 150))
+                cv2.imshow("Frame", frame)
 
-            if debug:
-                key = cv2.waitKey(0) & 0xFF
-                if key == ord('q'):
-                    break
-            else:
                 time.sleep(sleep_time)
-        print("Auto drive stopped by the user.")
-        self.update_drive('Neutral', 0.0, 0.0)
+
+                if debug:
+                    self.update_drive('Forward', 0.0, steering_angle)  # Stop the car for debugging
+                    key = cv2.waitKey(0) & 0xFF
+                    if key == ord('q'):
+                        break
+
+        except Exception as e:
+            print(f"An error occurred:\n{str(e)}")
+        finally:
+            # cv2.destroyAllWindows()
+            self.camera.stop()
+            self.update_drive('Neutral', 0.0, 0.0)  # Make sure the car stops.
 
     def plot_records(self):
         """
@@ -230,9 +238,10 @@ class CarController:
 
 
 def main(args):
+    pid_weights = ast.literal_eval(args.pid)
     controller = CarController(camera_resolution=(640, 480),
                                calibration_conf_path='../conf/camera_calibration.yaml',
-                               pid_weights=args.pid,
+                               pid_weights=pid_weights,
                                warp_conf_path='../conf/camera_warp.yaml',
                                car_kinematics_conf_path=
                                 '../conf/car_kinematics.yaml',
@@ -260,7 +269,7 @@ if __name__ == "__main__":
                         help="Mode to run: 'test' for test mechanism, 'auto' for camera-guided drive, 'debug' for frame level debug.")
     parser.add_argument("--speed", type=float, default=37.0, help="Fixed drive speed.")
     parser.add_argument("--fps", type=int, default=10, help="Frames per second to drive the car.")
-    parser.add_argument("--pid", type=tuple, default=(0.1, 0.1, 0.1), help="Weights for PID controller.")
+    parser.add_argument("--pid", type=str, default="(0.1, 0.1, 0.1)", help="Weights for PID controller.")
     args = parser.parse_args()
 
     main(args)
