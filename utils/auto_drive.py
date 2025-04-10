@@ -47,7 +47,7 @@ class CarController:
     def __init__(self,
                  camera_resolution=(640, 480),
                  offset_weight=0.9,
-                 pid_weights=(0.5, 0.1, 0.1),
+                 pid_weights=(0.1, 0.1, 0.1),
                  calibration_conf_path='camera_calibration.yaml',
                  warp_conf_path='camera_warp.yaml',
                  car_kinematics_conf_path='car_kinematics.yaml',
@@ -128,7 +128,7 @@ class CarController:
         # Should steer right.
         return steering_angle
     
-    def auto_drive_forward(self, fixed_speed, FPS, view=True, debug=False):
+    def auto_drive_forward(self, fixed_speed, FPS, debug=False):
         """
         Drives the car forward at a fixed speed. And steering with camera lane detection.
         """
@@ -138,52 +138,49 @@ class CarController:
         print("Camera started successfully")
         start_time = time.time()
         cur_time = 0.0
-        pre_time = 0.0
+        pre_time = time.time()
         target_offset = 0.0
         target_heading = 0.0
         control_target = target_offset * self.offset_weight + target_heading * self.heading_weight
-        try:
-            print("Press Ctrl+C to exit the program.") 
-            while True:
-                # Capture image from camera
-                frame = self.camera.capture_array()
+        print("Press q on camera window to exit the program.") 
+        while True:
+            # Capture image from camera
+            frame = self.camera.capture_array()
 
-                cur_time = time.time()
-                delta_time = cur_time - pre_time
+            cur_time = time.time()
+            delta_time = cur_time - pre_time
 
-                # Process the frame for lane detection.
-                offset_pixel, heading_degree = self.lane_detector.process_frame(frame)
-                observation = offset_pixel * self.offset_weight + heading_degree * self.heading_weight
-                pid_gain = self.pid.update(control_target, observation, delta_time)
-                steering_angle = self.get_steer(pid_gain)
+            # Process the frame for lane detection.
+            offset_pixel, heading_degree = self.lane_detector.process_frame(frame)
+            observation = offset_pixel * self.offset_weight + heading_degree * self.heading_weight
+            pid_gain = self.pid.update(control_target, observation, delta_time)
+            steering_angle = self.get_steer(pid_gain)
 
-                self.update_drive('Forward', fixed_speed, steering_angle)
+            self.update_drive('Forward', fixed_speed, steering_angle)
 
-                self.records['time'].append(cur_time - start_time)
-                self.records['offset'].append(offset_pixel)
-                self.records['heading'].append(heading_degree)
-                self.records['observation'].append(observation)
-                self.records['pid_gain'].append(pid_gain)
-                self.records['steering_angle'].append(steering_angle)
+            self.records['time'].append(cur_time - start_time)
+            self.records['offset'].append(offset_pixel)
+            self.records['heading'].append(heading_degree)
+            self.records['observation'].append(observation)
+            self.records['pid_gain'].append(pid_gain)
+            self.records['steering_angle'].append(steering_angle)
 
-                pre_time = cur_time
-                if view:
-                    _put_text(frame, f"Time: {cur_time - start_time:.2f}", (10, 0))
-                    _put_text(frame, f"Offset: {offset_pixel:.2f}", (10, 30))
-                    _put_text(frame, f"Heading: {heading_degree:.2f}", (10, 60))
-                    _put_text(frame, f"PID Gain: {pid_gain:.2f}", (10, 90))
-                    _put_text(frame, f"Steering Angle: {steering_angle:.2f}", (10, 120))
+            pre_time = cur_time
 
-                    cv2.imshow("Raw frame", frame)
-                if debug:
-                    key = cv2.waitKey(1) & 0xFF
-                    if key == ord('q'):
-                        break
-                time.sleep(sleep_time)
-        except KeyboardInterrupt:
-            print("Stopped by the user.")
-        finally:
-            self.update_drive('Neutral', 0.0, 0.0)
+            _put_text(frame, f"Time: {cur_time - start_time:.2f}", (10, 30))
+            _put_text(frame, f"Offset: {offset_pixel:.2f}", (10, 60))
+            _put_text(frame, f"Heading: {heading_degree:.2f}", (10, 90))
+            _put_text(frame, f"PID Gain: {pid_gain:.2f}", (10, 120))
+            _put_text(frame, f"Steering Angle: {steering_angle:.2f}", (10, 150))
+            cv2.imshow("Frame", frame)
+
+            if debug:
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord('q'):
+                    break
+            time.sleep(sleep_time)
+        print("Auto drive stopped by the user.")
+        self.update_drive('Neutral', 0.0, 0.0)
 
     def plot_records(self):
         """
@@ -234,6 +231,7 @@ class CarController:
 def main(args):
     controller = CarController(camera_resolution=(640, 480),
                                calibration_conf_path='../conf/camera_calibration.yaml',
+                               pid_weights=args.pid,
                                warp_conf_path='../conf/camera_warp.yaml',
                                car_kinematics_conf_path=
                                 '../conf/car_kinematics.yaml',
@@ -261,6 +259,7 @@ if __name__ == "__main__":
                         help="Mode to run: 'test' for test mechanism, 'auto' for camera-guided drive, 'debug' for frame level debug.")
     parser.add_argument("--speed", type=float, default=37.0, help="Fixed drive speed.")
     parser.add_argument("--fps", type=int, default=10, help="Frames per second to drive the car.")
+    parser.add_argument("--pid", type=tuple, default=(0.1, 0.1, 0.1), help="Weights for PID controller.")
     args = parser.parse_args()
 
     main(args)

@@ -348,8 +348,6 @@ class LaneDetector:
         offset = center_offset(left_fit, right_fit, masked, car_camera_offset=-5)
         heading = middle_line.heading_angle
         heading_deg = heading / np.pi * 180
-        print("----------------")
-        print("Heading (deg): ", heading_deg, "\tOffset (pix): ", offset)
         return offset, heading_deg
 
 
