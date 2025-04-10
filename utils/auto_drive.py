@@ -1,19 +1,59 @@
 import math
 import time
+import numpy as np
+from collections import defaultdict
 
-from steering_control import SteeringControl
+import keyboard
+import matplotlib.pyplot as plt
+from picamera2 import Picamera2
+
 from longitudinal_control import LongitudinalControl
+from lane_detector import LaneDetector
+from pid_control import PID
+from steering_control import SteeringControl
 
 FIXED_FORWARD_SPEED = 10.0  # units per second
 
 class CarController:
-    def __init__(self, car_kinematics_conf_path='car_kinematics.yaml', steering_conf_path='steering.yaml'):
+    """
+    Class to control the car's movement and steering using camera input for lane detection.
+    Args:
+        camera_resolution (tuple): Resolution of the camera.
+        offset_weight (float): Weight for the offset in lane detection, [0.0, 1.0].
+        pid_weights (tuple): Weights for PID control, (Kp, Ki, Kd).
+        calibration_conf_path (str): Path to the camera calibration configuration file.
+        warp_conf_path (str): Path to the camera warp configuration file.
+        car_kinematics_conf_path (str): Path to the car kinematics configuration file.
+        steering_conf_path (str): Path to the steering configuration file.
+    """
+    def __init__(self,
+                 camera_resolution=(640, 480),
+                 offset_weight=0.9,
+                 pid_weights=(0.5, 0.1, 0.1),
+                 calibration_conf_path='camera_calibration.yaml',
+                 warp_conf_path='camera_warp.yaml',
+                 car_kinematics_conf_path='car_kinematics.yaml',
+                 steering_conf_path='steering.yaml'):
         """
         self.longitudinal_control = LongitudinalControl()
         self.steering_control = SteeringControl()
         """
+        self.camera = Picamera2()
+        self.camera_config = self.camera.create_video_configuration(main={"size": camera_resolution})
+        self.camera.configure(self.camera_config)
+
+        self.lane_detector = LaneDetector(calibration_conf_path, warp_conf_path)
+
         self.longitudinal_control = LongitudinalControl(master=None, gui=False)
         self.steering_control = SteeringControl(car_kinematics_conf_path, steering_conf_path)
+        self.pid = PID(*pid_weights)
+
+        self.offset_weight = offset_weight
+        assert 0.0 <= self.offset_weight <= 1.0, "Offset weight must be in the range [0.0, 1.0]"
+        self.heading_weight = 1.0 - offset_weight
+
+        # Records for plotting and analysis.
+        self.records = defaultdict(list)
 
     def update_drive(self, gear: str, speed: float, steering_degree: float):
         """
@@ -47,16 +87,141 @@ class CarController:
         except KeyboardInterrupt:
             print("Auto drive stopped by the user.")
 
+    def get_steer(self, pid_gain):
+        """  
+        Convert the control signal to steering angle.  
+
+        Args:  
+            pid_gain (float): The control signal  
+
+        Returns:  
+            steering_angle: The steering angle in degrees.
+        """  
+        # Assuming a linear mapping from control signal to steering angle  
+        # This can be adjusted based on the specific vehicle dynamics  
+        min_pid_gain = -10   # Adjust based on realistic PID gain distributions
+        max_pid_gain = 10
+        max_steering_angle = 8.0 / 180 * math.pi  # Convert degrees to radians
+        min_steering_angle = -8.0 / 180 * math.pi
+
+        steering_angle = min_steering_angle + ((pid_gain - min_pid_gain) * (max_steering_angle - min_steering_angle)   
+                                           / (max_pid_gain - min_pid_gain))
+        # For example, if d-offset is negative (left to the center line), the error is positive, gain is positive.
+        # Should steer right.
+        return steering_angle
+    
+    def auto_drive_forward(self, FPS=10):
+        """
+        Drives the car forward at a fixed speed. And steering with camera lane detection.
+        """
+        sleep_time = 1.0 / FPS
+        FIXED_SPEED = 10.0
+
+        self.camera.start()
+        print("Camera started successfully")
+        start_time = time.time()
+        cur_time = 0.0
+        pre_time = 0.0
+        target_offset = 0.0
+        target_heading = 0.0
+        control_target = target_offset * self.offset_weight + target_heading * self.heading_weight
+        while True:
+            # Capture image from camera
+            frame = self.camera.capture_array()
+
+            cur_time = time.time()
+            delta_time = cur_time - pre_time
+
+            # Process the frame for lane detection.
+            offset_pixel, heading_degree = self.lane_detector.process_frame(frame)
+            observation = offset_pixel * self.offset_weight + heading_degree * self.heading_weight
+            pid_gain = self.pid.update(control_target, observation, delta_time)
+            steering_angle = self.get_steer(pid_gain)
+
+            self.update_drive('Forward', FIXED_SPEED, steering_angle)
+
+            self.records['time'].append(cur_time - start_time)
+            self.records['offset'].append(offset_pixel)
+            self.records['heading'].append(heading_degree)
+            self.records['observation'].append(observation)
+            self.records['pid_gain'].append(pid_gain)
+            self.records['steering_angle'].append(steering_angle)
+
+            pre_time = cur_time
+
+            # Check for 'q' to quit
+            if keyboard.is_pressed('q'):
+                print("Auto drive stopped by the user.")
+                break
+            time.sleep(sleep_time)
+
+        self.update_drive('Neutral', 0.0, 0.0)
+
+    def plot_records(self):
+        """
+        Plot the records of the car's movement and steering.
+        """
+        plt.figure(figsize=(12, 8))
+
+        plt.subplot(3, 2, 1)
+        plt.plot(self.records['time'], self.records['offset'], label='Offset')
+        plt.title('Offset over Time')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Offset (pixels)')
+        plt.grid()
+
+        plt.subplot(3, 2, 2)
+        plt.plot(self.records['time'], self.records['heading'], label='Heading')
+        plt.title('Heading over Time')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Heading (degrees)')
+        plt.grid()
+
+        plt.subplot(3, 2, 3)
+        plt.plot(self.records['time'], self.records['observation'], label='Observation')
+        plt.title('Observation over Time')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Observation')
+        plt.grid()
+
+        plt.subplot(3, 2, 4)
+        plt.plot(self.records['time'], self.records['pid_gain'], label='PID Gain')
+        plt.title('PID Gain over Time')
+        plt.xlabel('Time (s)')
+        plt.ylabel('PID Gain')
+        plt.grid()
+
+        plt.subplot(3, 2, 5)
+        plt.plot(self.records['time'], self.records['steering_angle'], label='Steering Angle')
+        plt.title('Steering Angle over Time')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Steering Angle (degrees)')
+        plt.grid()
+
+        # Adjust layout and show the plot
+        plt.tight_layout()
+        plt.show()
+
+
 def main():
-    controller = CarController('../conf/car_kinematics.yaml',
+    controller = CarController(camera_resolution=(640, 480),
+                               calibration_conf_path='../conf/camera_calibration.yaml',
+                               warp_conf_path='../conf/camera_warp.yaml',
+                               car_kinematics_conf_path=
+                                '../conf/car_kinematics.yaml',
+                               steering_conf_path=
                                '../conf/steering.yaml')
 
-    speeds = [] 
-    angles = []
-    for i in range(50):
-        speeds.append(FIXED_FORWARD_SPEED)
-        angles.append(math.sin(i / 10.0) * 8.0)  # The max abs steering angle is about 8.0 degrees.
-    controller.test_drive('Forward', speeds, angles, FPS=5)
+    ## Uncomment the following lines to test the auto drive forward and steering range.
+    # speeds = [] 
+    # angles = []
+    # for i in range(50):
+    #     speeds.append(FIXED_FORWARD_SPEED)
+    #     angles.append(math.sin(i / 10.0) * 8.0)  # The max abs steering angle is about 8.0 degrees.
+    # controller.test_drive('Forward', speeds, angles, FPS=5)
+
+    controller.auto_drive_forward(FPS=10)
+    controller.plot_records()
 
 if __name__ == "__main__":
     main()
