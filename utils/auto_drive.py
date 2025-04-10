@@ -118,8 +118,8 @@ class CarController:
         """  
         # Assuming a linear mapping from control signal to steering angle  
         # This can be adjusted based on the specific vehicle dynamics  
-        min_pid_gain = -10   # Adjust based on realistic PID gain distributions
-        max_pid_gain = 10
+        min_pid_gain = -1000   # Adjust based on realistic PID gain distributions
+        max_pid_gain = 1000
         max_steering_angle = 8.0 / 180 * math.pi  # Convert degrees to radians
         min_steering_angle = -8.0 / 180 * math.pi
 
