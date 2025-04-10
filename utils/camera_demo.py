@@ -36,13 +36,16 @@ def show_available_modes():
 def live_capture():
     """Run live camera preview with FPS counter and photo capture."""
     camera = Picamera2()
-    config = camera.create_preview_configuration(main={"size": (640, 480)})
+    # config = camera.create_preview_configuration(main={"size": (640, 480), "format": 'YUV420'})
+    config = camera.create_video_configuration(main={"size": (640, 480)})
     camera.configure(config)
     
     # Print current configuration
     current_config = camera.camera_config
+    print("-------------------")
     print(f"Current Resolution: {current_config['main']['size']}")
     print(f"Current Format: {current_config['main']['format']}")
+    print("-------------------")
     
     camera.start()
     print("Camera started successfully")
@@ -53,6 +56,9 @@ def live_capture():
     frame_count = 0
     
     cv2.namedWindow("Raspberry Pi Camera", cv2.WINDOW_NORMAL)
+
+    FPS = 30
+    time_delay = 1.0 / FPS
     
     try:
         while True:
@@ -61,12 +67,14 @@ def live_capture():
             
             # Count frames for FPS
             frame_count += 1
+            curr_time = time.time()
+            elapsed_time = curr_time - start_time
+
             if frame_count % 30 == 0:  # Update FPS every 30 frames
-                elapsed_time = time.time() - start_time
                 fps = frame_count / elapsed_time
                 print(f"Current FPS: {fps:.2f}")
                 frame_count = 0
-                start_time = time.time()
+                start_time = curr_time
             
             cv2.imshow("Raspberry Pi Camera", frame)
             key = cv2.waitKey(1) & 0xFF
@@ -83,7 +91,7 @@ def live_capture():
                 cv2.imwrite(filename, frame)
                 print(f"Photo saved as {filename}")
             
-            time.sleep(0.03)
+            time.sleep(time_delay)  # Control the frame rate
     
     except Exception as e:
         print(f"An error occurred: {str(e)}")

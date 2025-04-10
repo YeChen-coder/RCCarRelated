@@ -12,7 +12,7 @@ class SteeringServoControl:
             cls._instance._initialized = False
         return cls._instance
     
-    def __init__(self, master=None, gui=True):
+    def __init__(self, yaml_path: str, master=None, gui=False):
         # Only initialize once
         if self._initialized:
             return
@@ -43,8 +43,8 @@ class SteeringServoControl:
         # Set initial PWM frequency
         self.pi.set_PWM_frequency(self.gpio, self.f_pwm)
         
-        # Try to load config from default path
-        self.load_steering_calibration()
+        # Load configuration from YAML file.
+        self.load_steering_calibration(yaml_path)
 
         if gui and master:
             self._setup_gui(master)
@@ -56,6 +56,7 @@ class SteeringServoControl:
             # Set initial servo position even without GUI
             self.update_servo()
     
+    # GUI related methods.
     def _setup_gui(self, master):
         """Setup all GUI elements"""
         # GUI Elements
@@ -101,7 +102,7 @@ class SteeringServoControl:
         self.label_pw = tk.Label(master, text="Current pw: 0.00 ms")
         self.label_pw.grid(row=7, column=0, columnspan=2, pady=5)
     
-    def load_steering_calibration(self, yaml_path='steering.yaml'):
+    def load_steering_calibration(self, yaml_path):
         """Load steering configuration from YAML file"""
         try:
             if os.path.exists(yaml_path):
@@ -145,6 +146,8 @@ class SteeringServoControl:
 
     def set_steering(self, value):
         """Set steering value (0-100) without GUI slider"""
+        if value < 0 or value > 100:
+            print("Steering value must be between 0 and 100")
         self.slider_value = max(0, min(100, float(value)))  # Clamp between 0-100
         self.update_servo()
         return self.slider_value
@@ -183,6 +186,7 @@ class SteeringServoControl:
             'duty_cycle': duty_cycle
         }
 
+    # GUI methods.
     def apply_settings(self):
         """Apply user-entered configuration settings."""
         try:

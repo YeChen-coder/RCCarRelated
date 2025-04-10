@@ -113,7 +113,9 @@ class LongitudinalControl:
         return False
 
     def set_speed(self, value):
-        """Set speed value (0-100) without GUI slider"""
+        """Set speed value (0-100) without GUI slider.
+            value: clamped between 0 and 100.
+        """
         self.slider_value = max(0, min(100, float(value)))  # Clamp between 0-100
         # Update GUI if available
         if hasattr(self, 'slider'):

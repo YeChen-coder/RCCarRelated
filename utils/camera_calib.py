@@ -1,3 +1,10 @@
+"""
+Camera Calibration Utility.
+
+This script provides functionality to collect calibration images, perform camera calibration,
+and undistort images using the calibration data. It uses OpenCV and Picamera2 for image capture.
+"""
+
 import cv2
 import numpy as np
 import time
@@ -175,20 +182,22 @@ def undistort_image(image, camera_matrix, dist_coeffs):
 
     return undistorted_img, image
 
-def undistort_image_path(image_path):
-    """Load calibration data and undistort the specified image with scaled parameters."""
-    # Check if calibration file exists
-    if not os.path.exists('camera_calibration.yaml'):
-        print("Error: camera_calibration.yaml calibration file not found")
+def load_calibration_data(config_path='camera_calibration.yaml'):
+    """Load camera calibration data from YAML file."""
+    if not os.path.exists(config_path):
+        print("Error: calibration file not found at ", config_path)
         return None, None
     
-    # Load calibration data
-    with open('camera_calibration.yaml', 'r') as f:
+    with open(config_path, 'r') as f:
         calibration_data = yaml.safe_load(f)
     
     camera_matrix = np.array(calibration_data['camera_matrix'])
     dist_coeffs = np.array(calibration_data['dist_coeff'])
     
+    return camera_matrix, dist_coeffs
+
+def undistort_image_path(image_path, camera_matrix, dist_coeffs):
+    """Load calibration data and undistort the specified image with scaled parameters."""
     # Load the image
     if not os.path.exists(image_path):
         print(f"Error: Image file not found at {image_path}")
