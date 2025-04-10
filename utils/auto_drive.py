@@ -1,8 +1,10 @@
+import argparse
 import math
 import time
 import numpy as np
 import sys
 from collections import defaultdict
+from types import MethodType
 
 # import keyboard
 import matplotlib.pyplot as plt
@@ -113,12 +115,11 @@ class CarController:
         # Should steer right.
         return steering_angle
     
-    def auto_drive_forward(self, FPS=10):
+    def auto_drive_forward(self, fixed_speed, FPS):
         """
         Drives the car forward at a fixed speed. And steering with camera lane detection.
         """
         sleep_time = 1.0 / FPS
-        FIXED_SPEED = 10.0
 
         self.camera.start()
         print("Camera started successfully")
@@ -143,7 +144,7 @@ class CarController:
                 pid_gain = self.pid.update(control_target, observation, delta_time)
                 steering_angle = self.get_steer(pid_gain)
 
-                self.update_drive('Forward', FIXED_SPEED, steering_angle)
+                self.update_drive('Forward', fixed_speed, steering_angle)
 
                 self.records['time'].append(cur_time - start_time)
                 self.records['offset'].append(offset_pixel)
@@ -153,10 +154,6 @@ class CarController:
                 self.records['steering_angle'].append(steering_angle)
 
                 pre_time = cur_time
-
-                # if keyboard.is_pressed('q'):
-                #     print("Auto drive stopped by the user.")
-                #     break
                 time.sleep(sleep_time)
         except KeyboardInterrupt:
             print("Stopped by the user.")
@@ -209,7 +206,7 @@ class CarController:
         plt.show()
 
 
-def main():
+def main(args):
     controller = CarController(camera_resolution=(640, 480),
                                calibration_conf_path='../conf/camera_calibration.yaml',
                                warp_conf_path='../conf/camera_warp.yaml',
@@ -217,17 +214,26 @@ def main():
                                 '../conf/car_kinematics.yaml',
                                steering_conf_path=
                                '../conf/steering.yaml')
-
-    ## Uncomment the following lines to test the auto drive forward and steering range.
-    # speeds = [] 
-    # angles = []
-    # for i in range(50):
-    #     speeds.append(FIXED_FORWARD_SPEED)
-    #     angles.append(math.sin(i / 10.0) * 8.0)  # The max abs steering angle is about 8.0 degrees.
-    # controller.test_drive('Forward', speeds, angles, FPS=5)
-
-    controller.auto_drive_forward(FPS=5)
-    controller.plot_records()
+    if args.mode == "test_car":
+        speeds = [] 
+        angles = []
+        for i in range(50):
+            speeds.append(args.speed)
+            angles.append(math.sin(i / 10.0) * 8.0)  # The max abs steering angle is about 8.0 degrees.
+        controller.test_drive('Forward', speeds, angles, FPS=args.fps)
+    elif args.mode == "auto_drive":
+        controller.auto_drive_forward(fixed_speed=args.speed, FPS=args.fps)
+        controller.plot_records()
+    else:
+        print("Invalid mode. Use 'test_car' or 'auto_drive'.")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Auto RCCar control.")
+    parser.add_argument("mode", 
+                        choices=["test_car", "auto_drive"], 
+                        help="Mode to run: 'test_car' for test mechanism, 'auto_drive' for camera-guided drive.")
+    parser.add_argument("--speed", type=float, default=37.0, help="Fixed drive speed.")
+    parser.add_argument("--fps", type=int, default=10, help="Frames per second to drive the car.")
+    args = parser.parse_args()
+
+    main(args)
