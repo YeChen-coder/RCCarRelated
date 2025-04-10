@@ -59,8 +59,8 @@ class SteeringControl:
             self.servoControl.set_steering(steering_value)
             self.servoControl.update_servo()
         elif angle > 0:
-            angle = car_params["maximum_right_turning_angle"] if abs(angle) > abs(car_params["maximum_right_turning_angle"]) else angle
-            steering_value = angle / car_params["maximum_right_turning_angle"] * 50 + 50
+            angle = self.car_params["maximum_right_turning_angle"] if abs(angle) > abs(self.car_params["maximum_right_turning_angle"]) else angle
+            steering_value = angle / self.car_params["maximum_right_turning_angle"] * 50 + 50
             self.servoControl.set_steering(steering_value)
         else:
             angle = 10e-3 # Epislon to avoid division by zero
