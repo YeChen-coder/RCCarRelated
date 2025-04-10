@@ -1,6 +1,7 @@
 import math
 import time
 import numpy as np
+import sys
 from collections import defaultdict
 
 import keyboard
@@ -8,9 +9,11 @@ import matplotlib.pyplot as plt
 from picamera2 import Picamera2
 
 from longitudinal_control import LongitudinalControl
-from lane_detector import LaneDetector
 from pid_control import PID
 from steering_control import SteeringControl
+
+sys.path.append('../src')
+from lane_detector import LaneDetector
 
 FIXED_FORWARD_SPEED = 10.0  # units per second
 
