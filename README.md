@@ -3,6 +3,7 @@
 Step 1: Create a Python virtual environment:
 ```bash
 python3 -m venv path/to/venv 
+```
 
 Step 2: Activate the virtual environment:
 ```bash
