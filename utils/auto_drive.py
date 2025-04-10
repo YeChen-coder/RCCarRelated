@@ -178,7 +178,8 @@ class CarController:
                 key = cv2.waitKey(1) & 0xFF
                 if key == ord('q'):
                     break
-            time.sleep(sleep_time)
+            else:
+                time.sleep(sleep_time)
         print("Auto drive stopped by the user.")
         self.update_drive('Neutral', 0.0, 0.0)
 
@@ -237,14 +238,14 @@ def main(args):
                                 '../conf/car_kinematics.yaml',
                                steering_conf_path=
                                '../conf/steering.yaml')
-    if args.mode == "test_car":
+    if args.mode == "test":
         speeds = [] 
         angles = []
         for i in range(50):
             speeds.append(args.speed)
             angles.append(math.sin(i / 10.0) * 8.0)  # The max abs steering angle is about 8.0 degrees.
         controller.test_drive('Forward', speeds, angles, FPS=args.fps)
-    elif args.mode == "auto_drive":
+    elif args.mode == "auto":
         controller.auto_drive_forward(fixed_speed=args.speed, FPS=args.fps)
         controller.plot_records()
     elif args.mode == "debug":
