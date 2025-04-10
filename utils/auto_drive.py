@@ -106,20 +106,22 @@ class CarController:
         except KeyboardInterrupt:
             print("Auto drive stopped by the user.")
 
-    def get_steer(self, pid_gain):
+    def get_steer(self, pid_gain, weight, max_steering_angle=8.0):
         """  
         Convert the control signal to steering angle.  
 
         Args:  
-            pid_gain (float): The control signal  
+            pid_gain (float): The control signal.
+            weight (float): The weight for the PID gain. Smaller values means less angle for same gain.
 
         Returns:  
             steering_angle: The steering angle in degrees.
         """  
         # Assuming a linear mapping from control signal to steering angle  
         # This can be adjusted based on the specific vehicle dynamics  
-        min_pid_gain = -1000   # Adjust based on realistic PID gain distributions
-        max_pid_gain = 1000
+        pid_gain = math.tanh(pid_gain * weight)  # Normalize the PID gain to be between -1 and 1.
+        min_pid_gain = -1.0   # Adjust based on realistic PID gain distributions
+        max_pid_gain = 1.0
         max_steering_angle = 8.0 / 180 * math.pi  # Convert degrees to radians
         min_steering_angle = -8.0 / 180 * math.pi
 
@@ -156,7 +158,7 @@ class CarController:
                 offset_pixel, heading_degree = self.lane_detector.process_frame(frame)
                 observation = offset_pixel * self.offset_weight + heading_degree * self.heading_weight
                 pid_gain = self.pid.update(control_target, observation, delta_time)
-                steering_angle = self.get_steer(pid_gain)
+                steering_angle = self.get_steer(pid_gain, weight=args.steer_weight)
 
                 self.update_drive('Forward', fixed_speed, steering_angle)
 
@@ -270,6 +272,7 @@ if __name__ == "__main__":
     parser.add_argument("--speed", type=float, default=37.0, help="Fixed drive speed.")
     parser.add_argument("--fps", type=int, default=10, help="Frames per second to drive the car.")
     parser.add_argument("--pid", type=str, default="(0.1, 0.1, 0.1)", help="Weights for PID controller.")
+    parser.add_argument("--steer_weight", type=float, default=1.0, help="Weight for steering control. Less weight means less angle for same gain.")
     args = parser.parse_args()
 
     main(args)
