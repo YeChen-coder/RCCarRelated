@@ -122,14 +122,14 @@ class CarController:
         pid_gain = math.tanh(pid_gain * weight)  # Normalize the PID gain to be between -1 and 1.
         min_pid_gain = -1.0   # Adjust based on realistic PID gain distributions
         max_pid_gain = 1.0
-        max_steering_angle = 8.0 / 180 * math.pi  # Convert degrees to radians
-        min_steering_angle = -8.0 / 180 * math.pi
+        max_steering_angle = max_steering_angle / 180 * math.pi  # Convert degrees to radians
+        min_steering_angle = -1.0 * max_steering_angle
 
         steering_angle = min_steering_angle + ((pid_gain - min_pid_gain) * (max_steering_angle - min_steering_angle)   
                                            / (max_pid_gain - min_pid_gain))
         # For example, if d-offset is negative (left to the center line), the error is positive, gain is positive.
         # Should steer right.
-        return steering_angle
+        return steering_angle * 180 / math.pi  # Convert radians to degrees
     
     def auto_drive_forward(self, fixed_speed, FPS, debug=False):
         """
@@ -158,16 +158,16 @@ class CarController:
                 offset_pixel, heading_degree = self.lane_detector.process_frame(frame)
                 observation = offset_pixel * self.offset_weight + heading_degree * self.heading_weight
                 pid_gain = self.pid.update(control_target, observation, delta_time)
-                steering_angle = self.get_steer(pid_gain, weight=args.steer_weight)
+                steering_deg = self.get_steer(pid_gain, weight=args.steer_weight)
 
-                self.update_drive('Forward', fixed_speed, steering_angle)
+                self.update_drive('Forward', fixed_speed, steering_deg)
 
                 self.records['time'].append(cur_time - start_time)
                 self.records['offset'].append(offset_pixel)
                 self.records['heading'].append(heading_degree)
                 self.records['observation'].append(observation)
                 self.records['pid_gain'].append(pid_gain)
-                self.records['steering_angle'].append(steering_angle)
+                self.records['steering_angle'].append(steering_deg)
 
                 pre_time = cur_time
 
@@ -175,13 +175,13 @@ class CarController:
                 _put_text(frame, f"Offset: {offset_pixel:.2f}", (10, 60))
                 _put_text(frame, f"Heading: {heading_degree:.2f}", (10, 90))
                 _put_text(frame, f"PID Gain: {pid_gain:.2f}", (10, 120))
-                _put_text(frame, f"Steering Angle: {steering_angle:.2f}", (10, 150))
+                _put_text(frame, f"Steering Angle(deg): {steering_deg:.2f}", (10, 150))
                 cv2.imshow("Frame", frame)
 
                 time.sleep(sleep_time)
 
                 if debug:
-                    self.update_drive('Forward', 0.0, steering_angle)  # Stop the car for debugging
+                    self.update_drive('Forward', 0.0, steering_deg)  # Stop the car for debugging
                     key = cv2.waitKey(0) & 0xFF
                     if key == ord('q'):
                         break
