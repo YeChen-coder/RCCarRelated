@@ -259,13 +259,13 @@ class LaneDetector:
             # Currently not implemented so keep it False
             weighted=False
             
-            left_search_windows = previous_left_line.sliding_window_loc(masked, margin=30, weighted=weighted)
-            right_search_windows = previous_right_line.sliding_window_loc(masked, margin=30, weighted=weighted)
+            left_search_windows = self.previous_left_line.sliding_window_loc(masked, margin=30, weighted=weighted)
+            right_search_windows = self.previous_right_line.sliding_window_loc(masked, margin=30, weighted=weighted)
 
             # if len(left_search_windows) < len(right_search_windows) and previous_right_line.is_turning_left(masked.shape[0]):
-            if len(left_search_windows) != len(right_search_windows) and previous_right_line.is_turning_left(masked.shape[0]):
+            if len(left_search_windows) != len(right_search_windows) and self.previous_right_line.is_turning_left(masked.shape[0]):
                 left_search_windows, right_search_windows = _remove_overlapping_windows(left_search_windows, right_search_windows, mode='remove_a_keep_b')
-            elif len(left_search_windows) != len(right_search_windows) and previous_left_line.is_turning_right(masked.shape[0]):
+            elif len(left_search_windows) != len(right_search_windows) and self.previous_left_line.is_turning_right(masked.shape[0]):
                 left_search_windows, right_search_windows = _remove_overlapping_windows(left_search_windows, right_search_windows, mode='remove_b_keep_a')
 
             # Draw the windows after overlap removal, for better visualization and debug
@@ -315,8 +315,8 @@ class LaneDetector:
             right_fit = LaneLine('right', 'measured', (right_fit_cos[0], right_fit_cos[1], right_fit_cos[2]))
             self.initialized = True
 
-        previous_left_line = left_fit
-        previous_right_line = right_fit
+        self.previous_left_line = left_fit
+        self.previous_right_line = right_fit
         middle_line = middle_lane_fit(left_fit, right_fit)
         offset = center_offset(left_fit, right_fit, masked, car_camera_offset=-5)
         heading = middle_line.heading_angle

@@ -226,7 +226,7 @@ def main():
     #     angles.append(math.sin(i / 10.0) * 8.0)  # The max abs steering angle is about 8.0 degrees.
     # controller.test_drive('Forward', speeds, angles, FPS=5)
 
-    controller.auto_drive_forward(FPS=10)
+    controller.auto_drive_forward(FPS=5)
     controller.plot_records()
 
 if __name__ == "__main__":
