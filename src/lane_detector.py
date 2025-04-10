@@ -252,6 +252,42 @@ def _sliding_window_polyfit(image):
     
     return left_fit, right_fit, left_lane_inds, right_lane_inds, display_data
 
+def _draw_lane(und_image, warped_img, lane_fit, Minv):
+    image_copy = np.copy(und_image)
+    if lane_fit is None:
+        return image_copy
+    
+    # Create an image to draw the lines on
+    warp_zero = np.zeros_like(warped_img).astype(np.uint8)
+    
+    # Check if warped_img is grayscale and adjust color_warp accordingly
+    if len(warped_img.shape) == 2:
+        # If warped_img is grayscale
+        color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
+    else:
+        # If warped_img already has channels
+        color_warp = np.zeros_like(warped_img).astype(np.uint8)
+    
+    h, w = warped_img.shape[:2]
+    
+    ploty = np.linspace(0, h-1, num=h) # to cover same y-range as image
+    fitx = lane_fit.evaluate(ploty)
+    
+    # Make sure points are properly formatted
+    pts = np.array([np.transpose(np.vstack([fitx, ploty]))])
+    
+    # Ensure pts is properly shaped for polylines
+    pts = pts.astype(np.int32)
+    
+    # Draw the lane line
+    cv2.polylines(color_warp, pts, isClosed=False, color=(255,0,0), thickness=10)
+    
+    # Warp the blank back to original image space using inverse perspective matrix (Minv)
+    newwarp = cv2.warpPerspective(color_warp, Minv, (w, h)) 
+    
+    # Combine the result with the original image
+    result = cv2.addWeighted(image_copy, 1, newwarp, 0.3, 0)
+    return result
 
 class LaneDetector:
     def __init__(self, calibration_conf_path, warp_conf_path):
@@ -348,6 +384,27 @@ class LaneDetector:
         offset = center_offset(left_fit, right_fit, masked, car_camera_offset=-5)
         heading = middle_line.heading_angle
         heading_deg = heading / np.pi * 180
+
+        # Draw polyfit lines for better visualization and debugging
+        ploty = np.linspace(0, masked.shape[0]-1, masked.shape[0])
+        for idx, line in enumerate([left_fit, middle_line, right_fit]):
+            plotx = line.evaluate(ploty)
+            # Convert floating point values to integers for indexing
+            plotx = np.round(plotx).astype(np.int64)
+            
+            # Filter out any points that might be outside the image bounds
+            valid_points = (plotx >= 0) & (plotx < masked.shape[1])
+            ploty_valid = ploty[valid_points].astype(np.int64)
+            plotx_valid = plotx[valid_points]
+            
+            # Draw the line
+            out_img[ploty_valid, plotx_valid] = [100, 200, 255] if idx == 1 else [255, 100, 200]
+
+        drawed = _draw_lane(img, warped, middle_line, Minv)
+
+        combin = np.hstack((warped, out_img, drawed))
+        cv2.imshow("Combined", combin)
+
         return offset, heading_deg
 
 
