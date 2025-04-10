@@ -12,7 +12,7 @@ class SteeringServoControl:
             cls._instance._initialized = False
         return cls._instance
     
-    def __init__(self, master=None, gui=False):
+    def __init__(self, yaml_path: str, master=None, gui=False):
         # Only initialize once
         if self._initialized:
             return
@@ -43,8 +43,8 @@ class SteeringServoControl:
         # Set initial PWM frequency
         self.pi.set_PWM_frequency(self.gpio, self.f_pwm)
         
-        # Try to load config from default path
-        self.load_steering_calibration()
+        # Load configuration from YAML file.
+        self.load_steering_calibration(yaml_path)
 
         if gui and master:
             self._setup_gui(master)
@@ -102,7 +102,7 @@ class SteeringServoControl:
         self.label_pw = tk.Label(master, text="Current pw: 0.00 ms")
         self.label_pw.grid(row=7, column=0, columnspan=2, pady=5)
     
-    def load_steering_calibration(self, yaml_path='steering.yaml'):
+    def load_steering_calibration(self, yaml_path):
         """Load steering configuration from YAML file"""
         try:
             if os.path.exists(yaml_path):

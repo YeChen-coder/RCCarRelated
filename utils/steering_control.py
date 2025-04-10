@@ -12,8 +12,7 @@ class SteeringControl:
         servoControl: SteeringServoControl object
     """
     def __init__(self, car_kinematics_conf_path='car_kinematics.yaml', steering_conf_path='steering.yaml'):
-        self.servoControl = SteeringServoControl(master=None, gui=False)
-        self.servoControl.load_steering_calibration(steering_conf_path)
+        self.servoControl = SteeringServoControl(steering_conf_path, master=None, gui=False)
 
         with open(car_kinematics_conf_path, 'r') as file:
             yml_file = yaml.safe_load(file)
