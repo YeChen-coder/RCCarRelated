@@ -175,7 +175,7 @@ class CarController:
             cv2.imshow("Frame", frame)
 
             if debug:
-                key = cv2.waitKey(1) & 0xFF
+                key = cv2.waitKey(0) & 0xFF
                 if key == ord('q'):
                     break
             else:
