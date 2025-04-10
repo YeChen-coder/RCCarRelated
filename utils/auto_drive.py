@@ -48,7 +48,8 @@ class CarController:
             print("Auto drive stopped by the user.")
 
 def main():
-    controller = CarController('../conf/car_kinematics.yaml', '../conf/steering.yaml')
+    controller = CarController('../conf/car_kinematics.yaml',
+                               '../conf/steering.yaml')
 
     speeds = [] 
     angles = []

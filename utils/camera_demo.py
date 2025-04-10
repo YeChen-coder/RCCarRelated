@@ -53,6 +53,9 @@ def live_capture():
     frame_count = 0
     
     cv2.namedWindow("Raspberry Pi Camera", cv2.WINDOW_NORMAL)
+
+    FPS = 30
+    time_delay = 1.0 / FPS
     
     try:
         while True:
@@ -61,12 +64,14 @@ def live_capture():
             
             # Count frames for FPS
             frame_count += 1
+            curr_time = time.time()
+            elapsed_time = curr_time - start_time
+
             if frame_count % 30 == 0:  # Update FPS every 30 frames
-                elapsed_time = time.time() - start_time
                 fps = frame_count / elapsed_time
                 print(f"Current FPS: {fps:.2f}")
                 frame_count = 0
-                start_time = time.time()
+                start_time = curr_time
             
             cv2.imshow("Raspberry Pi Camera", frame)
             key = cv2.waitKey(1) & 0xFF
@@ -83,7 +88,7 @@ def live_capture():
                 cv2.imwrite(filename, frame)
                 print(f"Photo saved as {filename}")
             
-            time.sleep(0.03)
+            time.sleep(time_delay)  # Control the frame rate
     
     except Exception as e:
         print(f"An error occurred: {str(e)}")
