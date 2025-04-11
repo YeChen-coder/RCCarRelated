@@ -451,46 +451,52 @@ def predict_other_lane_line(lane_line, image, offset_rad_pixels=117):
         
     # Calculate endpoints of the curve
     # If the circle arc will not cross x=0
-    x0, x1 = np.float64(X_c - np.sqrt(np.float64(rad ** 2 - (y0 - Y_c) ** 2))), np.float64(h - 1)
-    
-    # Calculate theta values for the curve points
-    thetas = []
-    for x in [x0, x1]:
-        # For turning left, y = Y_c + sqrt(...)
-        # For turning right, y = Y_c - sqrt(...)
-        y = Y_c + sign * np.sqrt(np.float64(rad ** 2 - (x - X_c) ** 2))
+    try:
+        x0, x1 = np.float64(X_c - np.sqrt(np.float64(rad ** 2 - (y0 - Y_c) ** 2))), np.float64(h - 1)
         
-        # Calculate angle
-        dx, dy = np.float64(x - X_c), np.float64(y - Y_c)
-        if dx == 0:
-            theta = np.pi / 2 if dy > 0 else 3 * np.pi / 2
-        else:
-            theta = np.arctan2(dy, dx)
-        thetas.append(theta)
-    
-    # Convert to numpy array for calculations
-    thetas = np.array(thetas, dtype=np.float64)
-    
-    # Calculate new x-coordinates with the adjusted radius
-    new_Xs = X_c + rad2 * np.cos(thetas)
-    plotx = np.linspace(new_Xs[0], new_Xs[1], num=10)
-    
-    # Create arrays for broadcasting
-    X_c_array = np.full_like(plotx, X_c)
-    rad2_array = np.full_like(plotx, rad2)
-    Y_c_array = np.full_like(plotx, Y_c)
-    
-    # Calculate y-coordinates with the adjusted radius
-    ploty = Y_c_array + sign * np.sqrt(rad2_array ** 2 - (plotx - X_c_array) ** 2)
-    
-    # Fit a quadratic polynomial to the points
-    new_coeffs = np.polyfit(plotx, ploty, 2)
-    
-    return LaneLine(
-        position='left',  # This seems to always be 'left' in the original code
-        line_type='calculated',
-        coefficients=(new_coeffs[0], new_coeffs[1], new_coeffs[2])
-    )             
+        # Calculate theta values for the curve points
+        thetas = []
+        for x in [x0, x1]:
+            # For turning left, y = Y_c + sqrt(...)
+            # For turning right, y = Y_c - sqrt(...)
+            y = Y_c + sign * np.sqrt(np.float64(rad ** 2 - (x - X_c) ** 2))
+            
+            # Calculate angle
+            dx, dy = np.float64(x - X_c), np.float64(y - Y_c)
+            if dx == 0:
+                theta = np.pi / 2 if dy > 0 else 3 * np.pi / 2
+            else:
+                theta = np.arctan2(dy, dx)
+            thetas.append(theta)
+        
+        # Convert to numpy array for calculations
+        thetas = np.array(thetas, dtype=np.float64)
+        
+        # Calculate new x-coordinates with the adjusted radius
+        new_Xs = X_c + rad2 * np.cos(thetas)
+        plotx = np.linspace(new_Xs[0], new_Xs[1], num=10)
+        
+        # Create arrays for broadcasting
+        X_c_array = np.full_like(plotx, X_c)
+        rad2_array = np.full_like(plotx, rad2)
+        Y_c_array = np.full_like(plotx, Y_c)
+        
+        # Calculate y-coordinates with the adjusted radius
+        ploty = Y_c_array + sign * np.sqrt(rad2_array ** 2 - (plotx - X_c_array) ** 2)
+        
+        # Fit a quadratic polynomial to the points
+        new_coeffs = np.polyfit(plotx, ploty, 2)
+        
+        return LaneLine(
+            position='left',  # This seems to always be 'left' in the original code
+            line_type='calculated',
+            coefficients=(new_coeffs[0], new_coeffs[1], new_coeffs[2])
+        )
+    except ValueError:
+        return None  # Handle cases where the square root is negative (no valid solution)
+    finally:
+        pass
+                     
 
 def inverse_transform_polyfit(lane_line, image):
     """
