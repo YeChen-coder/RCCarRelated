@@ -313,6 +313,48 @@ def _draw_lane(und_image, warped_img, lane_or_pts, Minv):
     result = cv2.addWeighted(image_copy, 1, newwarp, 0.3, 0)
     return result
 
+def _generate_steering_plot(steering_deg, h, w, step=1, is_radian=False):
+    """
+    Generate (x, y) points on the turning circle arc within the given bounding rectangle.
+    """
+    # Convert to radians if necessary
+    steering_rad = steering_deg if is_radian else math.radians(steering_deg)
+
+    # Constants
+    wheel_base = 0.4
+    xm_per_pix = 0.36 / 117
+    ym_per_pix = 0.2 / 37
+
+    points = []
+
+    if steering_rad == 0:
+        # Straight line
+        y = w / 2
+        for x in np.arange(h / 3, h, step):
+            points.append((x, y))
+        return points
+
+    # Calculate turning radius in pixels
+    radius_m = abs(wheel_base / math.tan(steering_rad))
+    radius_px = radius_m / xm_per_pix
+
+    # Circle center in pixel coordinates
+    cx = h
+    cy = w / 2 + radius_px if steering_rad > 0 else w / 2 - radius_px
+
+    # Generate x range and calculate corresponding y values
+    x_vals = np.arange(h / 3, h, step)
+    dx_vals = (x_vals - cx) / (xm_per_pix / ym_per_pix)
+    dy_sq_vals = radius_px**2 - dx_vals**2
+
+    valid_mask = dy_sq_vals >= 0
+    x_vals = x_vals[valid_mask]
+    dy_vals = np.sqrt(dy_sq_vals[valid_mask])
+    y_vals = cy - dy_vals if steering_rad > 0 else cy + dy_vals
+
+    points = list(zip(x_vals, y_vals))
+    return points
+
 class LaneDetector:
     def __init__(self, calibration_conf_path, warp_conf_path):
         self.camera_matrix, self.dist_coeffs = load_calibration_data(calibration_conf_path)
