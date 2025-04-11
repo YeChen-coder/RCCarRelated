@@ -191,6 +191,13 @@ class CarController:
                     key = cv2.waitKey(0) & 0xFF
                     if key == ord('q'):
                         break
+                    if key == ord('r'):
+                        self.pid.reset()  # Reset the PID controller.
+                        print("PID controller reset.")
+                        self.lane_detector.reset()  # Reset the lane detector.
+                        print("Lane detector reset.")
+                        self.update_drive('Neutral', 0.0, 0.0)  # Stop the car.
+                        print("Car stopped and no steering reset.")
 
         except Exception as e:
             print(f"An error occurred:\n{str(e)}")

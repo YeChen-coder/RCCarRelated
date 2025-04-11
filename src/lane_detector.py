@@ -363,6 +363,14 @@ class LaneDetector:
         self.previous_left_line = None
         self.previous_right_line = None
 
+    def reset(self):
+        """
+        Reset the lane detector state.
+        """
+        self.initialized = False
+        self.previous_left_line = None
+        self.previous_right_line = None
+
     def process_frame(self, frame):
         """
         Process the input frame to detect lanes and return offset and heading angle.
