@@ -471,6 +471,8 @@ class LaneDetector:
             drawed = _draw_lane(img, warped, middle_line, Minv)
         else:
             drawed = _draw_lane(img, warped, None, Minv)
+            offset = None
+            heading_deg = None
         
         combin = np.hstack((warped, out_img, drawed))
         cv2.imshow("Combined", combin)
