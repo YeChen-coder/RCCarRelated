@@ -373,12 +373,15 @@ class LaneDetector:
             else:
                 # Two lines are both invisible
                 print('Condition: 4')
-                # raise Exception("Sorry, no found!")
+                # Fall back to sliding_window_polyfit
                 self.initialized = False
-                
+                continue
         else:
             # First time, initialized with sliding_window_method
             left_fit_cos, right_fit_cos, left_lane_inds, right_lane_inds, _ = _sliding_window_polyfit(masked)
+            if left_fit_cos is None or right_fit_cos is None:
+                # Sliding window must ensure two lines are visible
+                continue
             left_fit = LaneLine('left', 'measured', (left_fit_cos[0], left_fit_cos[1], left_fit_cos[2]))
             right_fit = LaneLine('right', 'measured', (right_fit_cos[0], right_fit_cos[1], right_fit_cos[2]))
             self.initialized = True
