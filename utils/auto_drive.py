@@ -156,6 +156,9 @@ class CarController:
 
                 # Process the frame for lane detection.
                 offset_pixel, heading_degree = self.lane_detector.process_frame(frame)
+                if offset_pixel is None or heading_degree is None:
+                    print("Lane detection failed. Retrying...")
+                    continue
                 observation = offset_pixel * self.offset_weight + heading_degree * self.heading_weight
                 pid_gain = self.pid.update(control_target, observation, delta_time)
                 steering_deg = self.get_steer(pid_gain, weight=args.steer_weight)
