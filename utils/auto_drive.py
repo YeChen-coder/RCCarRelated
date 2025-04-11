@@ -191,6 +191,8 @@ class CarController:
 
         except Exception as e:
             print(f"An error occurred:\n{str(e)}")
+            import traceback
+            traceback.print_exc()
         finally:
             # cv2.destroyAllWindows()
             self.camera.stop()
