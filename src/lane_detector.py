@@ -70,6 +70,11 @@ def _remove_overlapping_windows(windows_a, windows_b, mode='remove_a_keep_b'):
         If mode is 'remove_a_keep_b': filtered_windows_a, windows_b
         If mode is 'remove_b_keep_a': windows_a, filtered_windows_b
     """
+
+    # Ensure windows_a and windows_b are numpy arrays
+    windows_a = np.array(windows_a)
+    windows_b = np.array(windows_b)
+
     if mode not in ['remove_a_keep_b', 'remove_b_keep_a']:
         raise ValueError("Mode must be either 'remove_a_keep_b' or 'remove_b_keep_a'")
     
@@ -252,42 +257,103 @@ def _sliding_window_polyfit(image):
     
     return left_fit, right_fit, left_lane_inds, right_lane_inds, display_data
 
-def _draw_lane(und_image, warped_img, lane_fit, Minv):
-    image_copy = np.copy(und_image)
-    if lane_fit is None:
-        return image_copy
+def _draw_lane(und_image, warped_img, lane_or_pts, Minv):
+    """
+    Draws a lane or a list of points onto the original image using the inverse perspective matrix.
     
+    Args:
+        und_image: Original undistorted image.
+        warped_img: Warped image (used for sizing and warping back).
+        lane_or_pts: Either a LaneLine object with an .evaluate(y) method or a numpy array of points.
+        Minv: Inverse perspective transform matrix.
+        
+    Returns:
+        Image with lane or points drawn on it.
+    """
+    image_copy = np.copy(und_image)
+    if lane_or_pts is None:
+        return image_copy
+
     # Create an image to draw the lines on
     warp_zero = np.zeros_like(warped_img).astype(np.uint8)
-    
-    # Check if warped_img is grayscale and adjust color_warp accordingly
+
+    # Handle grayscale vs. color
     if len(warped_img.shape) == 2:
-        # If warped_img is grayscale
         color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
     else:
-        # If warped_img already has channels
         color_warp = np.zeros_like(warped_img).astype(np.uint8)
-    
+
     h, w = warped_img.shape[:2]
-    
-    ploty = np.linspace(0, h-1, num=h) # to cover same y-range as image
-    fitx = lane_fit.evaluate(ploty)
-    
-    # Make sure points are properly formatted
-    pts = np.array([np.transpose(np.vstack([fitx, ploty]))])
-    
-    # Ensure pts is properly shaped for polylines
-    pts = pts.astype(np.int32)
-    
-    # Draw the lane line
-    cv2.polylines(color_warp, pts, isClosed=False, color=(255,0,0), thickness=10)
-    
-    # Warp the blank back to original image space using inverse perspective matrix (Minv)
-    newwarp = cv2.warpPerspective(color_warp, Minv, (w, h)) 
-    
-    # Combine the result with the original image
+
+    # Determine how to process lane_or_pts
+    if isinstance(lane_or_pts, LaneLine) and hasattr(lane_or_pts, "evaluate"):
+        # Assume it's a LaneLine object
+        ploty = np.linspace(0, h - 1, num=h)
+        fitx = lane_or_pts.evaluate(ploty)
+        pts = np.array([np.transpose(np.vstack([fitx, ploty]))], dtype=np.int32)
+        color = (255, 0, 0)
+        thickness = 10
+    else:
+        # Assume it's an ndarray of points
+        pts = np.array(lane_or_pts, dtype=np.int32)
+        if pts.ndim == 2 and pts.shape[1] == 2:
+            pts = np.stack([pts[:, 1], pts[:, 0]], axis=1)  # Swap x and y
+            pts = pts.reshape((-1, 1, 2))
+        pts = [pts]
+        color = (0, 0, 255)
+        thickness = 5
+
+    # Draw the lane or points
+    cv2.polylines(color_warp, pts, isClosed=False, color=color, thickness=thickness)
+
+    # Warp the blank back to original image space
+    newwarp = cv2.warpPerspective(color_warp, Minv, (w, h))
+
+    # Overlay the result
     result = cv2.addWeighted(image_copy, 1, newwarp, 0.3, 0)
     return result
+
+def _generate_steering_plot(steering_deg, h, w, step=1, is_radian=False):
+    """
+    Generate (x, y) points on the turning circle arc within the given bounding rectangle.
+    """
+    # Convert to radians if necessary
+    steering_rad = steering_deg if is_radian else math.radians(steering_deg)
+
+    # Constants
+    wheel_base = 0.4
+    xm_per_pix = 0.36 / 117
+    ym_per_pix = 0.2 / 37
+
+    points = []
+
+    if steering_rad == 0:
+        # Straight line
+        y = w / 2
+        for x in np.arange(h / 3, h, step):
+            points.append((x, y))
+        return points
+
+    # Calculate turning radius in pixels
+    radius_m = abs(wheel_base / math.tan(steering_rad))
+    radius_px = radius_m / xm_per_pix
+
+    # Circle center in pixel coordinates
+    cx = h
+    cy = w / 2 + radius_px if steering_rad > 0 else w / 2 - radius_px
+
+    # Generate x range and calculate corresponding y values
+    x_vals = np.arange(h / 3, h, step)
+    dx_vals = (x_vals - cx) / (xm_per_pix / ym_per_pix)
+    dy_sq_vals = radius_px**2 - dx_vals**2
+
+    valid_mask = dy_sq_vals >= 0
+    x_vals = x_vals[valid_mask]
+    dy_vals = np.sqrt(dy_sq_vals[valid_mask])
+    y_vals = cy - dy_vals if steering_rad > 0 else cy + dy_vals
+
+    points = list(zip(x_vals, y_vals))
+    return points
 
 class LaneDetector:
     def __init__(self, calibration_conf_path, warp_conf_path):
@@ -368,40 +434,46 @@ class LaneDetector:
             else:
                 # Two lines are both invisible
                 print('Condition: 4')
-                # raise Exception("Sorry, no found!")
+                # Fall back to sliding_window_polyfit
                 self.initialized = False
-                
         else:
             # First time, initialized with sliding_window_method
             left_fit_cos, right_fit_cos, left_lane_inds, right_lane_inds, _ = _sliding_window_polyfit(masked)
-            left_fit = LaneLine('left', 'measured', (left_fit_cos[0], left_fit_cos[1], left_fit_cos[2]))
-            right_fit = LaneLine('right', 'measured', (right_fit_cos[0], right_fit_cos[1], right_fit_cos[2]))
-            self.initialized = True
-
-        self.previous_left_line = left_fit
-        self.previous_right_line = right_fit
-        middle_line = middle_lane_fit(left_fit, right_fit)
-        offset = center_offset(left_fit, right_fit, masked, car_camera_offset=-5)
-        heading = middle_line.heading_angle
-        heading_deg = heading / np.pi * 180
-
-        # Draw polyfit lines for better visualization and debugging
-        ploty = np.linspace(0, masked.shape[0]-1, masked.shape[0])
-        for idx, line in enumerate([left_fit, middle_line, right_fit]):
-            plotx = line.evaluate(ploty)
-            # Convert floating point values to integers for indexing
-            plotx = np.round(plotx).astype(np.int64)
+            if left_fit_cos is not None and right_fit_cos is not None:
+                # Sliding window must ensure two lines are visible
+                left_fit = LaneLine('left', 'measured', (left_fit_cos[0], left_fit_cos[1], left_fit_cos[2]))
+                right_fit = LaneLine('right', 'measured', (right_fit_cos[0], right_fit_cos[1], right_fit_cos[2]))
+                self.initialized = True
             
-            # Filter out any points that might be outside the image bounds
-            valid_points = (plotx >= 0) & (plotx < masked.shape[1])
-            ploty_valid = ploty[valid_points].astype(np.int64)
-            plotx_valid = plotx[valid_points]
-            
-            # Draw the line
-            out_img[ploty_valid, plotx_valid] = [100, 200, 255] if idx == 1 else [255, 100, 200]
+        if self.initialized:
+            self.previous_left_line = left_fit
+            self.previous_right_line = right_fit
+            middle_line = middle_lane_fit(left_fit, right_fit)
+            offset = center_offset(left_fit, right_fit, masked, car_camera_offset=-5)
+            heading = middle_line.heading_angle
+            heading_deg = heading / np.pi * 180
 
-        drawed = _draw_lane(img, warped, middle_line, Minv)
+            # Draw polyfit lines for better visualization and debugging
+            ploty = np.linspace(0, masked.shape[0]-1, masked.shape[0])
+            for idx, line in enumerate([left_fit, middle_line, right_fit]):
+                plotx = line.evaluate(ploty)
+                # Convert floating point values to integers for indexing
+                plotx = np.round(plotx).astype(np.int64)
+                
+                # Filter out any points that might be outside the image bounds
+                valid_points = (plotx >= 0) & (plotx < masked.shape[1])
+                ploty_valid = ploty[valid_points].astype(np.int64)
+                plotx_valid = plotx[valid_points]
+                
+                # Draw the line
+                out_img[ploty_valid, plotx_valid] = [100, 200, 255] if idx == 1 else [255, 100, 200]
 
+            drawed = _draw_lane(img, warped, middle_line, Minv)
+        else:
+            drawed = _draw_lane(img, warped, None, Minv)
+            offset = None
+            heading_deg = None
+        
         combin = np.hstack((warped, out_img, drawed))
         cv2.imshow("Combined", combin)
 
