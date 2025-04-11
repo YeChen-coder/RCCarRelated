@@ -70,6 +70,11 @@ def _remove_overlapping_windows(windows_a, windows_b, mode='remove_a_keep_b'):
         If mode is 'remove_a_keep_b': filtered_windows_a, windows_b
         If mode is 'remove_b_keep_a': windows_a, filtered_windows_b
     """
+
+    # Ensure windows_a and windows_b are numpy arrays
+    windows_a = np.array(windows_a)
+    windows_b = np.array(windows_b)
+
     if mode not in ['remove_a_keep_b', 'remove_b_keep_a']:
         raise ValueError("Mode must be either 'remove_a_keep_b' or 'remove_b_keep_a'")
     
