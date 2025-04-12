@@ -6,8 +6,8 @@ import numpy as np
 from lane_line import LaneLine, predict_other_lane_line, middle_lane_fit, center_offset
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../utils")
-from camera_warp import load_warp_points, warp_image_undistorted, warp_image_path
-from camera_calib import load_calibration_data, undistort_image, undistort_image_path
+from camera_warp import load_warp_points, warp_image_undistorted
+from camera_calib import load_calibration_data, undistort_image
 
 def _check_overlap(window1, window2):
     """
@@ -383,11 +383,8 @@ class LaneDetector:
         img, _ = undistort_image(frame, self.camera_matrix, self.dist_coeffs)
         warped, M, Minv = warp_image_undistorted(img, self.src_point, self.dst_point)
 
-        masked, edges = _color_space_transform(warped)
+        masked, _ = _color_space_transform(warped)
 
-        nonzero = masked.nonzero()
-        nonzeroy = np.array(nonzero[0])
-        nonzerox = np.array(nonzero[1])
         out_img = np.uint8(np.dstack((masked, masked, masked))*255)
         
         if self.initialized:
@@ -486,8 +483,3 @@ class LaneDetector:
         cv2.imshow("Combined", combin)
 
         return offset, heading_deg
-
-
-    def draw_lanes(self, frame):
-        # Placeholder for drawing detected lanes on the frame
-        pass

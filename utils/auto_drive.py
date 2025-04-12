@@ -17,8 +17,6 @@ sys.path.append('../src')
 from lane_detector import LaneDetector
 from pid_control import PID
 
-FIXED_FORWARD_SPEED = 10.0  # units per second
-
 def _put_text(img, text, pos, font=cv2.FONT_HERSHEY_SIMPLEX, scale=0.5, color=(255, 255, 255), thickness=1):
     """
     Put text on an image.
@@ -53,10 +51,7 @@ class CarController:
                  warp_conf_path='camera_warp.yaml',
                  car_kinematics_conf_path='car_kinematics.yaml',
                  steering_conf_path='steering.yaml'):
-        """
-        self.longitudinal_control = LongitudinalControl()
-        self.steering_control = SteeringControl()
-        """
+
         self.camera = Picamera2()
         self.camera_config = self.camera.create_video_configuration(main={"size": camera_resolution})
         self.camera.configure(self.camera_config)
@@ -65,6 +60,7 @@ class CarController:
 
         self.longitudinal_control = LongitudinalControl(master=None, gui=False)
         self.steering_control = SteeringControl(car_kinematics_conf_path, steering_conf_path)
+
         self.pid = PID(*pid_weights)
 
         self.offset_weight = offset_weight
@@ -83,17 +79,17 @@ class CarController:
             steering_degree (float): The steering command in degrees (0.0 means straight), value will be camp to [-8.0, 8.0].
         """
         assert self.longitudinal_control.set_gear(gear)
-        assert self.longitudinal_control.set_speed(speed) == speed # Make sure speed is set correctly
+        assert self.longitudinal_control.set_speed(speed) == speed # Make sure speed is correctly set.
         self.steering_control.set_angle_degrees(steering_degree)
 
     def test_drive(self, gear: str, speeds, steering_angles, FPS=1):
         """
-        Drives the car at a fixed forward speed.
+        Drives the car following the given speeds and steering angles.
         """
         assert len(speeds) == len(steering_angles), "Speeds and steering angles must have the same length"
 
         time_delay = 1.0 / FPS
-        print("Starting auto drive...")
+        print("Starting test drive...")
         try:
             self.update_drive('Neutral', 0.0, 0.0)  # Reset to neutral at the beginning.
 
@@ -117,7 +113,6 @@ class CarController:
         Returns:  
             steering_angle: The steering angle in degrees.
         """  
-        # Assuming a linear mapping from control signal to steering angle  
         # This can be adjusted based on the specific vehicle dynamics  
         pid_gain = math.tanh(pid_gain * weight)  # Normalize the PID gain to be between -1 and 1.
         min_pid_gain = -1.0   # Adjust based on realistic PID gain distributions
@@ -139,12 +134,14 @@ class CarController:
 
         self.camera.start()
         print("Camera started successfully")
+
         start_time = time.time()
         cur_time = 0.0
         pre_time = time.time()
         target_offset = 0.0
         target_heading = 0.0
         control_target = target_offset * self.offset_weight + target_heading * self.heading_weight
+
         print("Press q on camera window to exit the program.") 
         try:
             while True:
@@ -157,11 +154,9 @@ class CarController:
                 # Process the frame for lane detection.
                 offset_pixel, heading_degree = self.lane_detector.process_frame(frame)
                 if offset_pixel is None or heading_degree is None:
-                    print("Lane detection failed. No offset or heading detected. skipping frame and keep straight.")
+                    print("No offset or heading detected. Skipping frame and keep straight.")
                     offset_pixel = 0.0
                     heading_degree = 0.0
-                #     print("Lane detection failed. Retrying...")
-                #     continue
                 observation = offset_pixel * self.offset_weight + heading_degree * self.heading_weight
                 pid_gain = self.pid.update(control_target, observation, delta_time)
                 steering_deg = self.get_steer(pid_gain, weight=args.steer_weight)
@@ -277,17 +272,17 @@ def main(args):
     elif args.mode == "debug":
         controller.auto_drive_forward(fixed_speed=args.speed, FPS=args.fps, debug=True)
     else:
-        print("Invalid mode. Use 'test_car' or 'auto_drive'.")
+        print("Invalid mode.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Auto RCCar control.")
     parser.add_argument("mode", 
                         choices=["test", "auto", "debug"], 
-                        help="Mode to run: 'test' for test mechanism, 'auto' for camera-guided drive, 'debug' for frame level debug.")
+                        help="Mode to run: 'test' for test mechanism, 'auto' for camera-guided drive, 'debug' for camera-guided drive with frame level debug.")
     parser.add_argument("--speed", type=float, default=37.0, help="Fixed drive speed.")
     parser.add_argument("--fps", type=int, default=10, help="Frames per second to drive the car.")
     parser.add_argument("--pid", type=str, default="(0.1, 0.1, 0.1)", help="Weights for PID controller.")
-    parser.add_argument("--steer_weight", type=float, default=1.0, help="Weight for steering control. Less weight means less angle for same gain.")
+    parser.add_argument("--steer_weight", type=float, default=1.0, help="Weight for steering control. Less weight means less steer for the same pid gain.")
     args = parser.parse_args()
 
     main(args)
