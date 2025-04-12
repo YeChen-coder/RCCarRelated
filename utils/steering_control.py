@@ -1,7 +1,6 @@
 import math
 import yaml  # Requires 'pyyaml' package: sudo apt-get install python3-yaml
 
-import pigpio
 import numpy as np
 
 from steering_calibration import SteeringServoControl
