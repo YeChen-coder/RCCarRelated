@@ -19,6 +19,14 @@ class PID:
         self.prev_error = 0.0    # For storing the previous error (used in derivative term)  
         self.integral = 0.0      # Accumulated integral of the error  
 
+    def reset(self):  
+        """
+        Reset the PID controller's internal state.
+        This method clears the accumulated integral and previous error values.
+        """
+        self.prev_error = 0.0
+        self.integral = 0.0
+
     def update(self, setpoint, measurement, dt):  
         """  
         Compute the control output using the PID formula.  
