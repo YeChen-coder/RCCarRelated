@@ -45,3 +45,5 @@ cd path/to/RCCarRelated/utils
 
 python3 auto_drive.py auto --speed 40 --fps 10 --steer_weight 0.5
 ```
+#DEMO Video Link:
+https://www.youtube.com/watch?v=nsVGrZQ1r80&list=PL-WltkCZLf4pbiq5nPD7VYbRuJJEh1OGw&index=1
