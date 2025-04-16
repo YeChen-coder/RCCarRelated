@@ -1,4 +1,16 @@
-# Environment
+# Lane Keep Assist for McMaster RC Car Project
+
+## Demo
+
+[![Demo](https://img.youtube.com/vi/nsVGrZQ1r80/0.jpg)](https://www.youtube.com/watch?v=nsVGrZQ1r80&list=PL-WltkCZLf4pbiq5nPD7VYbRuJJEh1OGw&index=1)
+
+## Everything Explained
+
+Check the [SEP742 - Group 1 - Lane Keep on AC Car.pdf](SEP742%20-%20Group%201%20-%20Lane%20Keep%20on%20AC%20Car.pdf) file for more information. 
+
+## Development
+
+### Environment
 
 Step 1: Create a Python virtual environment:
 ```bash
@@ -16,21 +28,21 @@ cd path/to/RCCarRelated
 pip install -r requirements.txt
 ```
 
-# Run
+### Run
 
-## AutoRCCar Control Script  
+#### AutoRCCar Control Script  
 
 This script is designed to control an RC car with different modes of operation, including testing, autonomous driving, and debugging. It allows customization of parameters like speed, frame rate, PID controller weights, and steering control.  
 
 ---  
 
-### Usage  
+#### Usage  
 
 ```bash  
 python auto_drive.py <mode> [--speed <float>] [--fps <int>] [--pid <tuple>] [--steer_weight <float>]  
 ```
 
-### Example
+#### Example
 
 The debug mode, car will run in steps when user press keyboard, until user press 'q':
 ```
@@ -45,5 +57,3 @@ cd path/to/RCCarRelated/utils
 
 python3 auto_drive.py auto --speed 40 --fps 10 --steer_weight 0.5
 ```
-#DEMO Video Link:
-https://www.youtube.com/watch?v=nsVGrZQ1r80&list=PL-WltkCZLf4pbiq5nPD7VYbRuJJEh1OGw&index=1
